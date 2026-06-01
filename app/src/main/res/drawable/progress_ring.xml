@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+    res/drawable/progress_ring.xml
+    Indeterminate ring drawable for the suggestion-loading ProgressBar.
+    Uses the app's blue accent on a dark transparent track.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Track ring -->
+  <item>
+    <shape
+        android:innerRadiusRatio="2.8"
+        android:shape="ring"
+        android:thicknessRatio="12"
+        android:useLevel="false">
+      <solid android:color="#1A2A3D" />
+    </shape>
+  </item>
+
+  <!-- Animated sweep -->
+  <item>
+    <rotate
+        android:fromDegrees="0"
+        android:pivotX="50%"
+        android:pivotY="50%"
+        android:toDegrees="360">
+      <shape
+          android:innerRadiusRatio="2.8"
+          android:shape="ring"
+          android:thicknessRatio="12"
+          android:useLevel="false">
+        <gradient
+            android:centerColor="#884DA3FF"
+            android:endColor="#4DA3FF"
+            android:startColor="#004DA3FF"
+            android:type="sweep" />
+      </shape>
+    </rotate>
+  </item>
+
+</layer-list>

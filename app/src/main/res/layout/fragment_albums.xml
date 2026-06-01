@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:layout_marginTop="12dp"
+      android:background="@drawable/glass_surface"
+      android:clipToOutline="true"
+      android:elevation="8dp"
+      android:backgroundTint="@color/bg_sheet"
+      android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+      <!-- Header -->
+      <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="52dp"
+          android:gravity="center_vertical"
+          android:orientation="horizontal"
+          android:paddingStart="20dp"
+          android:paddingEnd="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Albums"
+            android:textColor="@color/text_primary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <ImageView
+            android:id="@+id/btnSearch"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="8dp"
+            android:padding="2dp"
+            android:src="@drawable/ic_search"
+            app:tint="@color/text_secondary" />
+
+
+      </LinearLayout>
+
+      <LinearLayout
+          android:id="@+id/searchBar"
+          android:layout_width="match_parent"
+          android:layout_height="0dp"
+          android:gravity="center_vertical"
+          android:orientation="horizontal"
+          android:paddingStart="16dp"
+          android:paddingEnd="16dp"
+          android:paddingBottom="8dp"
+          android:visibility="gone">
+
+        <EditText
+            android:id="@+id/etSearch"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:background="@drawable/search_input_bg"
+            android:hint="Search albums…"
+            android:imeOptions="actionSearch"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted"
+            android:textSize="14sp" />
+
+        <ImageView
+            android:id="@+id/btnSearchClear"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="4dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_close"
+            android:visibility="gone"
+            app:tint="@color/text_muted" />
+
+      </LinearLayout>
+
+
+      <View
+          android:layout_width="match_parent"
+          android:layout_height="1dp"
+          android:background="@color/divider" />
+
+      <androidx.recyclerview.widget.RecyclerView
+          android:id="@+id/rvAlbums"
+          android:layout_width="match_parent"
+          android:layout_height="0dp"
+          android:layout_weight="1"
+          android:clipToPadding="false"
+          android:paddingStart="12dp"
+          android:paddingEnd="12dp"
+          android:paddingBottom="88dp" />
+    </LinearLayout>
+
+
+  </LinearLayout>
+
+</LinearLayout>

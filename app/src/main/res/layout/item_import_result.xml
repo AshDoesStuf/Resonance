@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  Single imported song row inside the settings import card.
+
+  [ art ]  Title
+           Artist              [✓ / ⚠]
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="56dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="2dp"
+    android:paddingEnd="2dp">
+
+  <!-- Artwork -->
+  <ImageView
+      android:id="@+id/ivImportArt"
+      android:layout_width="38dp"
+      android:layout_height="38dp"
+      android:scaleType="centerCrop"
+      android:src="@drawable/ic_note_outlined" />
+
+  <!-- Title + subtitle -->
+  <LinearLayout
+      android:layout_width="0dp"
+      android:layout_height="wrap_content"
+      android:layout_marginStart="12dp"
+      android:layout_weight="1"
+      android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/tvImportTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/text_primary"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvImportSub"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/text_secondary"
+        android:textSize="11sp" />
+
+  </LinearLayout>
+
+  <!-- Status icon (check = success, warning = failed) -->
+  <ImageView
+      android:id="@+id/ivImportStatus"
+      android:layout_width="20dp"
+      android:layout_height="20dp"
+      android:layout_marginStart="8dp"
+      android:src="@drawable/ic_check_circle" />
+
+</LinearLayout>

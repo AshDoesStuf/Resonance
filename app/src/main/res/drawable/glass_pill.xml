@@ -1,0 +1,32 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- subtle light diffusion -->
+  <item>
+    <shape>
+      <gradient
+          android:angle="45"
+          android:centerColor="#12FFFFFF"
+          android:endColor="#1AFFFFFF"
+          android:startColor="#19FFFFFF"
+          android:type="linear" />
+
+      <corners android:radius="40dp" />
+    </shape>
+  </item>
+
+  <!-- base glass -->
+  <item>
+    <shape>
+
+      <solid android:color="#10161A24" />
+
+      <stroke
+          android:width="1dp"
+          android:color="#26FFFFFF" />
+
+      <corners android:radius="40dp" />
+
+    </shape>
+  </item>
+
+
+</layer-list>

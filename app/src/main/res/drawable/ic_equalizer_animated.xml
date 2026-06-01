@@ -1,0 +1,49 @@
+<!-- res/drawable/ic_equalizer_animated.xml -->
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ic_equalizer">
+
+  <!-- Left bar: slow bounce, starts low -->
+  <target android:name="barLeft">
+    <aapt:attr name="android:animation">
+      <objectAnimator
+          android:propertyName="scaleY"
+          android:valueFrom="0.3"
+          android:valueTo="1.0"
+          android:duration="600"
+          android:repeatCount="infinite"
+          android:repeatMode="reverse"
+          android:interpolator="@android:interpolator/accelerate_decelerate"/>
+    </aapt:attr>
+  </target>
+
+  <!-- Center bar: faster bounce, offset phase -->
+  <target android:name="barCenter">
+    <aapt:attr name="android:animation">
+      <objectAnimator
+          android:propertyName="scaleY"
+          android:valueFrom="1.0"
+          android:valueTo="0.25"
+          android:duration="400"
+          android:repeatCount="infinite"
+          android:repeatMode="reverse"
+          android:interpolator="@android:interpolator/accelerate_decelerate"/>
+    </aapt:attr>
+  </target>
+
+  <!-- Right bar: medium speed, different phase -->
+  <target android:name="barRight">
+    <aapt:attr name="android:animation">
+      <objectAnimator
+          android:propertyName="scaleY"
+          android:valueFrom="0.5"
+          android:valueTo="1.0"
+          android:duration="500"
+          android:repeatCount="infinite"
+          android:repeatMode="reverse"
+          android:interpolator="@android:interpolator/accelerate_decelerate"/>
+    </aapt:attr>
+  </target>
+
+</animated-vector>

@@ -1,0 +1,128 @@
+<!-- ── Floating pill mini player ── -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/miniPlayer"
+    android:layout_width="match_parent"
+    android:layout_height="76dp"
+    android:layout_gravity="bottom|center_horizontal"
+    android:layout_margin="16dp"
+    android:clipToOutline="true"
+    android:elevation="0dp"
+    android:foreground="@drawable/glass_pill_outline"
+    android:foregroundGravity="fill">
+
+  <me.ash.resonance.BlurBehindView
+      android:id="@+id/miniBlurBehind"
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:clipToOutline="true" />
+
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:gravity="center_vertical"
+      android:orientation="horizontal"
+      android:paddingStart="10dp"
+      android:paddingEnd="6dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        app:cardBackgroundColor="@color/bg_secondary"
+        app:cardCornerRadius="21dp"
+        app:cardElevation="0dp">
+
+      <ImageView
+          android:id="@+id/miniArt"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:scaleType="centerCrop"
+          android:src="@drawable/ic_note_outlined" />
+    </androidx.cardview.widget.CardView>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+      <LinearLayout
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:gravity="center_vertical"
+          android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/miniTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="marquee"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:marqueeRepeatLimit="marquee_forever"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:text="Title"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/miniBluetoothIcon"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_marginStart="4dp"
+            android:alpha="0.8"
+            android:src="@drawable/ic_bluetooth_connected"
+            android:visibility="gone"
+            app:tint="@color/accent_light" />
+
+      </LinearLayout>
+
+      <TextView
+          android:id="@+id/miniArtist"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:ellipsize="end"
+          android:maxLines="1"
+          android:text="Artist"
+          android:textColor="@color/text_secondary"
+          android:textSize="12sp" />
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/miniPrevious"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/ic_previous"
+        app:tint="@color/text_primary" />
+
+    <ImageButton
+        android:id="@+id/miniPlay"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/ic_play"
+        app:tint="@color/text_primary" />
+
+    <ImageButton
+        android:id="@+id/miniNext"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/ic_next"
+        app:tint="@color/text_primary" />
+
+    <ImageButton
+        android:id="@+id/miniQueue"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:alpha="0.7"
+        android:background="@android:color/transparent"
+        android:src="@drawable/queue_music_24px"
+        app:tint="@color/text_primary" />
+  </LinearLayout>
+</FrameLayout>

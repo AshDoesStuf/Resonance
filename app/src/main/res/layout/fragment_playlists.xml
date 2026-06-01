@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:layout_marginTop="12dp"
+      android:background="@drawable/glass_surface"
+      android:clipToOutline="true"
+      android:elevation="8dp"
+      android:backgroundTint="@color/bg_sheet"
+      android:orientation="vertical">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingEnd="8dp">
+
+      <TextView
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_weight="1"
+          android:text="Playlists"
+          android:textColor="@color/text_primary"
+          android:textSize="15sp"
+          android:textStyle="bold" />
+
+      <!-- Toggle grid/list view -->
+      <ImageButton
+          android:id="@+id/btnToggleView"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:background="?attr/selectableItemBackgroundBorderless"
+          android:contentDescription="Toggle view"
+          android:src="@drawable/ic_grid_view"
+          app:tint="@color/text_secondary" />
+
+      <!-- New playlist -->
+      <ImageButton
+          android:id="@+id/btnNewPlaylist"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:background="?attr/selectableItemBackgroundBorderless"
+          android:contentDescription="New playlist"
+          android:src="@drawable/ic_add"
+          app:tint="@color/text_secondary" />
+
+      <ImageButton
+          android:id="@+id/btnImportPlaylist"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:background="?attr/selectableItemBackgroundBorderless"
+          android:contentDescription="Import M3U"
+          android:src="@drawable/ic_file_upload"
+          app:tint="@color/text_secondary" />
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/divider" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvPlaylists"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="88dp" />
+
+  </LinearLayout>
+
+</LinearLayout>

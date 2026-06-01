@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:layout_marginTop="12dp"
+      android:background="@drawable/glass_surface"
+      android:clipToOutline="true"
+      android:elevation="8dp"
+      android:backgroundTint="@color/bg_sheet"
+      android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+      <!-- ── Header bar: sort label + search + play + more ── -->
+      <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="52dp"
+          android:gravity="center_vertical"
+          android:orientation="horizontal"
+          android:paddingStart="20dp"
+          android:paddingEnd="12dp">
+
+        <!-- Sort label — tap to cycle, long-press to pick -->
+        <TextView
+            android:id="@+id/tvSortMode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:drawablePadding="4dp"
+            android:text="Name"
+            android:textColor="@color/text_primary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <!-- Search toggle button -->
+        <ImageView
+            android:id="@+id/btnSearch"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="8dp"
+            android:padding="2dp"
+            android:src="@drawable/ic_search"
+            app:tint="@color/text_secondary" />
+
+        <!-- Play all button -->
+        <ImageView
+            android:id="@+id/btnPlay"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="8dp"
+            android:padding="2dp"
+            android:src="@drawable/ic_play"
+            app:tint="@color/text_secondary" />
+
+        <!-- Shuffle play button -->
+        <ImageView
+            android:id="@+id/btnShuffle"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="8dp"
+            android:padding="2dp"
+            android:src="@drawable/shuffle_24px"
+            app:tint="@color/text_secondary" />
+
+        <ImageView
+            android:id="@+id/btnSortMore"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:padding="2dp"
+            android:src="@drawable/ic_more_vert"
+            app:tint="@color/text_secondary" />
+
+      </LinearLayout>
+
+      <!-- ── Search bar (hidden by default) ── -->
+      <LinearLayout
+          android:id="@+id/searchBar"
+          android:layout_width="match_parent"
+          android:layout_height="0dp"
+          android:gravity="center_vertical"
+          android:orientation="horizontal"
+          android:paddingStart="16dp"
+          android:paddingEnd="16dp"
+          android:paddingBottom="8dp"
+          android:visibility="gone">
+
+        <EditText
+            android:id="@+id/etSearch"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:background="@drawable/search_input_bg"
+            android:hint="Search songs…"
+            android:imeOptions="actionSearch"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted"
+            android:textSize="14sp" />
+
+        <ImageView
+            android:id="@+id/btnSearchClear"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="4dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_close"
+            android:visibility="gone"
+            app:tint="@color/text_muted" />
+
+      </LinearLayout>
+
+      <!-- Thin divider -->
+      <View
+          android:layout_width="match_parent"
+          android:layout_height="1dp"
+          android:background="#28FFFFFF" />
+
+      <!-- ── Song list + alphabet sidebar ── -->
+      <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="0dp"
+          android:layout_weight="1"
+          android:orientation="horizontal">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvSongs"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingBottom="88dp" />
+
+        <LinearLayout
+            android:id="@+id/alphaSidebar"
+            android:layout_width="22dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="2dp"
+            android:layout_marginBottom="96dp"
+            android:background="@drawable/sidebar_pill"
+            android:gravity="center"
+            android:orientation="vertical" />
+
+      </LinearLayout>
+
+    </LinearLayout>
+
+  </LinearLayout>
+</LinearLayout>

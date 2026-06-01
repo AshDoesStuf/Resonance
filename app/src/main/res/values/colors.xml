@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+  <!-- Base Backgrounds -->
+  <color name="bg_primary">#010101</color>
+  <color name="bg_secondary">#3B4A5A</color>
+  <color name="bg_tertiary">#B8C1CC</color>
+
+  <!-- Cards / Surfaces -->
+  <color name="bg_card">#1A1F2A</color>
+  <color name="bg_card_elevated">#222838</color>
+  <color name="bg_sheet">#181A20</color>
+
+  <!-- Samsung-style Blue Accent -->
+  <color name="accent">#c7a1a9</color>
+  <color name="accent_light">#D9BCC2</color>
+  <color name="accent_dark">#A57D86</color>
+
+  <!-- Secondary Accent Colors -->
+  <color name="accent_purple">#9B7BFF</color>
+  <color name="accent_teal">#4FD1C5</color>
+  <color name="accent_green">#4CD964</color>
+  <color name="accent_red">#FF5C5C</color>
+  <color name="accent_orange">#FF9F43</color>
+
+  <!-- Text -->
+  <color name="text_primary">#fafaff</color>
+  <color name="text_secondary">#C9CAD6</color>
+  <color name="text_muted">#8D8F9C</color>
+  <color name="text_disabled">#5F616B</color>
+
+  <!-- Navigation -->
+  <color name="nav_active">#4DA3FF</color>
+  <color name="nav_inactive">#70737C</color>
+
+  <!-- Borders / Dividers -->
+  <color name="border">#2A3140</color>
+  <color name="divider">#1F2533</color>
+
+  <!-- Status Colors -->
+  <color name="success">#4CD964</color>
+  <color name="warning">#FFB020</color>
+  <color name="error">#FF5C5C</color>
+  <color name="info">#4DA3FF</color>
+
+  <!-- Buttons -->
+  <color name="button_primary">#4DA3FF</color>
+  <color name="button_primary_pressed">#2B7DFF</color>
+  <color name="button_secondary">#2A2C33</color>
+
+  <!-- Inputs -->
+  <color name="input_bg">#1A1C22</color>
+  <color name="input_stroke">#343741</color>
+  <color name="input_focus">#4DA3FF</color>
+
+  <!-- Ripple / Overlay -->
+  <color name="ripple">#33FFFFFF</color>
+  <color name="overlay_dark">#99000000</color>
+
+</resources>

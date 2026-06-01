@@ -1,0 +1,42 @@
+<resources>
+
+  <style name="Theme.Resonance" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+
+    <item name="colorPrimary">@color/bg_primary</item>
+    <item name="colorPrimaryVariant">@color/bg_secondary</item>
+
+    <item name="colorSurface">@color/bg_primary</item>
+    <item name="colorSurfaceVariant">@color/bg_secondary</item>
+
+    <item name="colorOnSurface">@color/text_primary</item>
+    <item name="colorOnPrimary">@color/text_primary</item>
+
+    <item name="android:fontFamily">@font/jetbrains</item>
+    <item name="fontFamily">@font/jetbrains</item>
+
+    <item name="android:windowBackground">@drawable/bg_main_gradient</item>
+
+    <item name="android:statusBarColor">@color/bg_primary</item>
+    <item name="android:navigationBarColor">@android:color/transparent</item>
+    <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    <item name="bottomSheetDialogTheme">@style/BottomSheetStyle</item>
+
+
+  </style>
+
+  <style name="Theme.Resonance.Translucent" parent="Theme.Resonance">
+    <item name="android:windowIsTranslucent">true</item>
+    <item name="android:windowBackground">@android:color/transparent</item>
+    <item name="android:backgroundDimEnabled">true</item>
+    <item name="android:backgroundDimAmount">0.5</item>
+  </style>
+
+  <style name="BottomSheetStyle" parent="Theme.MaterialComponents.BottomSheetDialog">
+    <item name="bottomSheetStyle">@style/TransparentBottomSheet</item>
+  </style>
+
+  <style name="TransparentBottomSheet" parent="Widget.MaterialComponents.BottomSheet.Modal">
+    <item name="android:background">@android:color/transparent</item>
+    <item name="backgroundTint">@android:color/transparent</item>
+  </style>
+</resources>

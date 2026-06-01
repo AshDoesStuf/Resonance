@@ -1,0 +1,74 @@
+plugins {
+    alias(libs.plugins.android.application)
+}
+
+android {
+    namespace 'me.ash.resonance'
+    compileSdk {
+        version = release(36) {
+            minorApiLevel = 1
+        }
+    }
+
+    defaultConfig {
+        applicationId "me.ash.resonance"
+        minSdk 35
+        targetSdk 36
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+
+dependencies {
+    implementation libs.activity.ktx
+    implementation libs.appcompat
+    implementation libs.constraintlayout
+//    implementation libs.material
+    implementation libs.material.v1130
+    implementation libs.glide
+
+    implementation libs.media3.exoplayer
+    implementation libs.media3.exoplayer.dash
+    implementation libs.media3.session
+    implementation libs.media3.ui
+    implementation libs.media3.exoplayer.hls
+    implementation libs.media
+    implementation libs.viewpager2
+    implementation libs.localbroadcastmanager
+
+    implementation libs.room.runtime
+    annotationProcessor libs.room.compiler
+
+    implementation libs.blurview.vversion320
+    implementation libs.newpipeextractor
+
+    implementation libs.gson
+    implementation libs.datastore
+
+    // NewPipe depends on jsoup and Rhino (JS engine for age-gated videos)
+    implementation libs.jsoup
+    implementation libs.rhino
+
+    // OkHttp (NewPipe Downloader implementation — already likely in your project)
+    implementation libs.okhttp
+
+    testImplementation libs.junit
+    androidTestImplementation libs.espresso.core
+    androidTestImplementation libs.ext.junit
+
+
+}
