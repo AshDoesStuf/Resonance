@@ -1,7 +1,6 @@
 package me.ash.resonance;
 
 import android.annotation.SuppressLint;
-import android.content.ComponentName;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -14,6 +13,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
@@ -21,8 +21,8 @@ import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.session.MediaController;
-import androidx.media3.session.SessionToken;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.DataSource;
@@ -30,7 +30,6 @@ import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
-import com.google.common.util.concurrent.ListenableFuture;
 
 import me.ash.resonance.album.AlbumDetailActivity;
 import me.ash.resonance.artist.ArtistDetailActivity;
@@ -38,7 +37,6 @@ import me.ash.resonance.playback.PlaybackSessionManager;
 import me.ash.resonance.playlist.PlaylistManager;
 import me.ash.resonance.playlist.PlaylistPickerSheet;
 import me.ash.resonance.queue.QueueManager;
-import me.ash.resonance.services.MusicService;
 import me.ash.resonance.util.DominantColorExtractor;
 
 public class NowPlayingActivity extends AppCompatActivity {
@@ -46,10 +44,11 @@ public class NowPlayingActivity extends AppCompatActivity {
   private static final float ART_SCALE_PLAYING = 1f;
   private static final float ART_SCALE_PAUSED = 0.82f;
   private final Handler seekHandler = new Handler(Looper.getMainLooper());
+  private final me.ash.resonance.remote.RemoteStreamManager.RemoteStreamListener remoteStreamListener =
+          enabled -> syncRemotePlayButton();
   private MediaController controller;
   private androidx.cardview.widget.CardView cardAlbumArt;
   private TextView tvTitle, tvArtist, tvCurrentTime, tvTotalTime;
-
   private TextView tvBluetoothDevice;
   private ImageView ivBluetoothIcon;
   private SeekBar seekBar;
@@ -74,13 +73,10 @@ public class NowPlayingActivity extends AppCompatActivity {
   // Cached metadata for navigation taps
   private String currentArtistName = null;
   private long currentAlbumId = -1;
-
   private float swipeStartY;
   private String currentArtistForAlbum = null; // artist name carried alongside albumId
 
-  private final me.ash.resonance.remote.RemoteStreamManager.RemoteStreamListener remoteStreamListener =
-          enabled -> syncRemotePlayButton();
-
+  @OptIn(markerClass = UnstableApi.class)
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -259,6 +255,7 @@ public class NowPlayingActivity extends AppCompatActivity {
     seekHandler.removeCallbacks(seekUpdater);
   }
 
+  @OptIn(markerClass = UnstableApi.class)
   @Override
   protected void onDestroy() {
     super.onDestroy();
