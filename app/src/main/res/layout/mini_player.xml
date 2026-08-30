@@ -1,4 +1,8 @@
-<!-- ── Floating pill mini player ── -->
+<!-- ── Floating pill / docked mini player ── -->
+<!--
+     layout_margin is intentionally omitted here — MiniPlayerManager.applyPosition()
+     sets it at runtime so the docked mode can go truly edge-to-edge.
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/miniPlayer"

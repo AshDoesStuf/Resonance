@@ -9,7 +9,7 @@
 
   <androidx.cardview.widget.CardView
       android:layout_width="match_parent"
-      android:layout_height="110dp"
+      android:layout_height="154dp"
       app:cardBackgroundColor="@color/bg_card"
       app:cardCornerRadius="14dp"
       app:cardElevation="0dp">
@@ -18,7 +18,7 @@
         android:id="@+id/ivPlaylistIcon"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="centerCrop"
+        android:scaleType="fitCenter"
         android:src="@drawable/ic_library_music"
         app:tint="@color/accent" />
 

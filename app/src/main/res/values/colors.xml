@@ -10,6 +10,7 @@
   <color name="bg_card">#1A1F2A</color>
   <color name="bg_card_elevated">#222838</color>
   <color name="bg_sheet">#181A20</color>
+  <color name="bg_dark">#17171a</color>
 
   <!-- Samsung-style Blue Accent -->
   <color name="accent">#c7a1a9</color>

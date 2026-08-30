@@ -11,11 +11,13 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
@@ -23,19 +25,21 @@ import androidx.media3.session.MediaController;
 import androidx.media3.session.SessionToken;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import me.ash.resonance.album.Album;
 import me.ash.resonance.album.AlbumDetailActivity;
-import me.ash.resonance.artist.Artist;
 import me.ash.resonance.artist.ArtistDetailActivity;
 import me.ash.resonance.playback.PlaybackSessionManager;
 import me.ash.resonance.playlist.PlaylistManager;
 import me.ash.resonance.playlist.PlaylistPickerSheet;
-import me.ash.resonance.queue.QueueBottomSheet;
 import me.ash.resonance.queue.QueueManager;
 import me.ash.resonance.services.MusicService;
+import me.ash.resonance.util.DominantColorExtractor;
 
 public class NowPlayingActivity extends AppCompatActivity {
 
@@ -63,9 +67,10 @@ public class NowPlayingActivity extends AppCompatActivity {
   private android.media.AudioDeviceCallback audioDeviceCallback;
   private Player.Listener playerListener;
   private ImageButton btnPlayPause, btnNext, btnPrevious;
-  private ImageButton btnShuffle, btnRepeat, btnQueue;
+  private ImageButton btnShuffle, btnRepeat, btnQueue, btnListeningParty, btnRemotePlay;
   private ImageButton btnFavourite, btnAddToPlaylist;
   private ImageView ivAlbumArt;
+  private me.ash.resonance.ui.AmbientGlowView ambientGlowView;
   // Cached metadata for navigation taps
   private String currentArtistName = null;
   private long currentAlbumId = -1;
@@ -73,14 +78,19 @@ public class NowPlayingActivity extends AppCompatActivity {
   private float swipeStartY;
   private String currentArtistForAlbum = null; // artist name carried alongside albumId
 
+  private final me.ash.resonance.remote.RemoteStreamManager.RemoteStreamListener remoteStreamListener =
+          enabled -> syncRemotePlayButton();
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
     setContentView(R.layout.activity_now_playing);
     overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, R.anim.slide_up, 0);
 
     // Start translated off-screen if launched in peek mode
     View rootView = findViewById(R.id.root); // your root layout id
+    View contentLayout = findViewById(R.id.contentLayout);
     boolean peekMode = getIntent().getBooleanExtra("peek_mode", false);
 
     if (peekMode) {
@@ -136,9 +146,20 @@ public class NowPlayingActivity extends AppCompatActivity {
       }
     });
 
-    ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root), (v, insets) -> {
-      int navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
-      v.setPadding(v.getPaddingLeft(), v.getPaddingTop(), v.getPaddingRight(), navBar);
+    float density = getResources().getDisplayMetrics().density;
+    int baseTopPadding = (int) (16 * density);
+    int baseBottomPadding = (int) (36 * density);
+
+    ViewCompat.setOnApplyWindowInsetsListener(rootView, (v, insets) -> {
+      int systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
+      int statusBar = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+
+      contentLayout.setPadding(
+              contentLayout.getPaddingLeft(),
+              statusBar + baseTopPadding,
+              contentLayout.getPaddingRight(),
+              systemBars + baseBottomPadding
+      );
       return insets;
     });
 
@@ -153,9 +174,12 @@ public class NowPlayingActivity extends AppCompatActivity {
     btnShuffle = findViewById(R.id.btnShuffle);
     btnRepeat = findViewById(R.id.btnRepeat);
     btnQueue = findViewById(R.id.btnQueue);
+    btnListeningParty = findViewById(R.id.btnListeningParty);
+    btnRemotePlay = findViewById(R.id.btnRemotePlay);
     btnFavourite = findViewById(R.id.btnFavourite);
     btnAddToPlaylist = findViewById(R.id.btnAddToPlaylist);
     ivAlbumArt = findViewById(R.id.ivNowAlbumArt);
+    ambientGlowView = findViewById(R.id.ambientGlowView);
     cardAlbumArt = findViewById(R.id.cardNowAlbumArt);
     tvBluetoothDevice = findViewById(R.id.tvBluetoothDevice);
     ivBluetoothIcon = findViewById(R.id.ivBluetoothIcon);
@@ -168,22 +192,30 @@ public class NowPlayingActivity extends AppCompatActivity {
     // ── Tappable artist → ArtistDetailSheet ───────────────────────────────
     tvArtist.setOnClickListener(v -> {
       if (currentArtistName == null || currentArtistName.isEmpty()) return;
-      startActivity(ArtistDetailActivity.createIntent(this, new Artist(currentArtistName, 0)));
+      // Note: We don't have a channelId here if it's a local song, but for YT songs 
+      // we might want to pass it. For now, we'll pass null for channelId to let the activity 
+      // handle it (it might fall back to local search if id is null, though current impl is YT focused).
+      // However, the new ArtistDetailActivity.createIntent expects channelId, name, thumb.
+      startActivity(ArtistDetailActivity.createIntent(this, null, currentArtistName, null));
     });
 
     // ── Tappable album art → AlbumDetailSheet ─────────────────────────────
     ivAlbumArt.setOnClickListener(v -> {
       if (currentAlbumId < 0) return;
-      android.net.Uri artUri = android.net.Uri.parse(
-              "content://media/external/audio/albumart/" + currentAlbumId);
-      Album album = new Album(currentAlbumId, "", currentArtistForAlbum, 0, artUri);
+      String artUrl = "content://media/external/audio/albumart/" + currentAlbumId;
 
-      startActivity(AlbumDetailActivity.createIntent(this, album));
+      // The new AlbumDetailActivity.createIntent expects browseId, title, artist, thumb.
+      startActivity(AlbumDetailActivity.createIntent(this, null, null, currentArtistForAlbum, artUrl));
     });
 
     initController();
     setupUI();
     registerAudioDeviceCallback();
+
+    me.ash.resonance.remote.RemoteControlManager rcm = me.ash.resonance.remote.RemoteControlManager.getInstance();
+    if (rcm != null && rcm.getRemoteStreamManager() != null) {
+      rcm.getRemoteStreamManager().addListener(remoteStreamListener);
+    }
   }
 
   private void registerAudioDeviceCallback() {
@@ -230,6 +262,10 @@ public class NowPlayingActivity extends AppCompatActivity {
   @Override
   protected void onDestroy() {
     super.onDestroy();
+    me.ash.resonance.remote.RemoteControlManager rcm = me.ash.resonance.remote.RemoteControlManager.getInstance();
+    if (rcm != null && rcm.getRemoteStreamManager() != null) {
+      rcm.getRemoteStreamManager().removeListener(remoteStreamListener);
+    }
     MiniPlayerManager.setPeekCallback(null);
     if (controller != null && playerListener != null) {
       controller.removeListener(playerListener); // ← clean detach before nulling
@@ -265,26 +301,10 @@ public class NowPlayingActivity extends AppCompatActivity {
 
   // ── Controller ────────────────────────────────────────────────────────────
   private void initController() {
-    MediaController c = ((ResonanceApp) getApplication()).getSharedController();
-    if (c != null) {
+    ((ResonanceApp) getApplication()).getSharedController(c -> {
       controller = c;
       onControllerReady();
-    } else {
-      // Fallback: build our own if app controller isn't ready
-      // (shouldn't happen in normal flow)
-      SessionToken token = new SessionToken(
-              this, new ComponentName(this, MusicService.class));
-      ListenableFuture<MediaController> future =
-              new MediaController.Builder(this, token).buildAsync();
-      future.addListener(() -> {
-        try {
-          controller = future.get();
-          onControllerReady();
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-      }, ContextCompat.getMainExecutor(this));
-    }
+    });
   }
 
   private void onControllerReady() {
@@ -294,8 +314,8 @@ public class NowPlayingActivity extends AppCompatActivity {
       updateSongUI(current);
     } else {
       QueueManager.SavedQueueState pending = QueueManager.get().getPendingRestore();
-      if (pending != null && !pending.items.isEmpty()) {
-        updateSongUI(pending.items.get(pending.index));
+      if (pending != null && !pending.items().isEmpty()) {
+        updateSongUI(pending.items().get(pending.index()));
       }
     }
     long dur = controller.getDuration();
@@ -394,11 +414,38 @@ public class NowPlayingActivity extends AppCompatActivity {
     tvArtist.setPaintFlags(
             tvArtist.getPaintFlags() | android.graphics.Paint.UNDERLINE_TEXT_FLAG);
 
+    String artKey = item.mediaMetadata.artworkUri != null
+            ? item.mediaMetadata.artworkUri.toString()
+            : "default";
+
+    if (item.mediaMetadata.artworkUri == null && ambientGlowView != null) {
+      ambientGlowView.setColors(new DominantColorExtractor.GeneratedPalette(null));
+    }
+
     Glide.with(this)
-            .load(item.mediaMetadata.artworkUri)
+            .load(item.mediaMetadata.artworkUri != null ? item.mediaMetadata.artworkUri : item)
             .placeholder(R.drawable.ic_note_outlined)
             .error(R.drawable.ic_note_outlined)
             .transition(DrawableTransitionOptions.withCrossFade(400))
+            .listener(new RequestListener<android.graphics.drawable.Drawable>() {
+              @Override
+              public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<android.graphics.drawable.Drawable> target, boolean isFirstResource) {
+                return false;
+              }
+
+              @Override
+              public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model, Target<android.graphics.drawable.Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                if (resource instanceof android.graphics.drawable.BitmapDrawable bd) {
+                  me.ash.resonance.util.ArtworkCache.getInstance().setArtwork(item.mediaMetadata.artworkUri, bd.getBitmap());
+                }
+                DominantColorExtractor.extract(artKey, resource, palette -> {
+                  if (ambientGlowView != null) {
+                    ambientGlowView.setColors(palette);
+                  }
+                });
+                return false;
+              }
+            })
             .into(ivAlbumArt);
   }
 
@@ -425,8 +472,7 @@ public class NowPlayingActivity extends AppCompatActivity {
     });
 
     btnQueue.setOnClickListener(v ->
-            QueueBottomSheet.newInstance()
-                    .show(getSupportFragmentManager(), QueueBottomSheet.TAG));
+            me.ash.resonance.queue.QueueActivity.start(this));
 
     seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
       @Override
@@ -452,7 +498,50 @@ public class NowPlayingActivity extends AppCompatActivity {
             PlaylistPickerSheet.newInstance(getCurrentSongId())
                     .show(getSupportFragmentManager(), PlaylistPickerSheet.TAG));
 
+    btnListeningParty.setOnClickListener(v -> {
+      me.ash.resonance.sharedlistening.ui.ListeningPartyBottomSheet.newInstance()
+              .show(getSupportFragmentManager(), "ListeningParty");
+    });
+
+    btnRemotePlay.setOnClickListener(v -> toggleRemotePlay());
+
     updateAudioOutputUI();
+    syncRemotePlayButton();
+  }
+
+  private void toggleRemotePlay() {
+    me.ash.resonance.remote.RemoteControlManager rcm = me.ash.resonance.remote.RemoteControlManager.getInstance();
+    if (rcm == null) {
+      Toast.makeText(this, "Remote Control not initialized", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    me.ash.resonance.remote.RemoteStreamManager rsm = rcm.getRemoteStreamManager();
+    if (rsm == null) return;
+
+    boolean newState = !rsm.isEnabled();
+    rsm.onSetRemoteStreamMode(newState);
+    syncRemotePlayButton();
+
+    if (newState) {
+      Toast.makeText(this, "Casting to Web App", Toast.LENGTH_SHORT).show();
+    } else {
+      Toast.makeText(this, "Local Playback", Toast.LENGTH_SHORT).show();
+    }
+  }
+
+  private void syncRemotePlayButton() {
+    me.ash.resonance.remote.RemoteControlManager rcm = me.ash.resonance.remote.RemoteControlManager.getInstance();
+    if (rcm == null) return;
+    me.ash.resonance.remote.RemoteStreamManager rsm = rcm.getRemoteStreamManager();
+    if (rsm == null) return;
+
+    if (rsm.isEnabled()) {
+      btnRemotePlay.setColorFilter(getColor(R.color.accent));
+      btnRemotePlay.setAlpha(1.0f);
+    } else {
+      btnRemotePlay.setColorFilter(getColor(R.color.text_secondary));
+      btnRemotePlay.setAlpha(0.7f);
+    }
   }
 
   /**

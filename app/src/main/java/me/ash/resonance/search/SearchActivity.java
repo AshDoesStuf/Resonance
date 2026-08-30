@@ -2,7 +2,6 @@ package me.ash.resonance.search;
 
 import static me.ash.resonance.util.Utils.buildYtItem;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -20,21 +19,29 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.session.MediaController;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.chip.ChipGroup;
+
+import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+import me.ash.resonance.MiniPlayerManager;
 import me.ash.resonance.MusicLoader;
-import me.ash.resonance.NowPlayingActivity;
 import me.ash.resonance.R;
+import me.ash.resonance.album.AlbumDetailActivity;
+import me.ash.resonance.artist.ArtistDetailActivity;
 import me.ash.resonance.playlist.PlaylistManager;
 import me.ash.resonance.playlist.PlaylistPickerSheet;
 import me.ash.resonance.queue.QueueManager;
@@ -67,21 +74,33 @@ public class SearchActivity extends AppCompatActivity {
   private static final int DEBOUNCE_MS = 300; // local filter debounce
   private final Handler handler = new Handler(Looper.getMainLooper());
   private SelectionManager<String> selectionManager;
+  private MiniPlayerManager miniPlayerManager;
   // ── Views ─────────────────────────────────────────────────────────────────
   private EditText etSearch;
   private ImageButton btnBack, btnClear;
-  private View selectionBar;
+  private View selectionBar, filterContainer;
   private TextView tvSelectionCount;
   private ImageButton btnDownloadSelected;
   private ImageButton btnCancelSelected;
   private ProgressBar progressLocal, progressYt;
   private TextView tvYtStatus;
   private RecyclerView rv;
+  private ChipGroup chipGroupFilter;
+
   // ── State ─────────────────────────────────────────────────────────────────
   private List<Song> allSongs = new ArrayList<>();
   private SearchResultAdapter adapter;
   private MediaController controller;
   private Runnable localDebounce;
+
+  /**
+   * The NewPipe filter constant currently selected by the user.
+   */
+  private String activeFilter = YoutubeSearchQueryHandlerFactory.MUSIC_SONGS;
+  /**
+   * Last query submitted to YT search — used to re-fire when filter chip changes.
+   */
+  private String lastYtQuery = null;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -131,6 +150,9 @@ public class SearchActivity extends AppCompatActivity {
   @Override
   protected void onDestroy() {
     super.onDestroy();
+    if (miniPlayerManager != null) {
+      miniPlayerManager.detach();
+    }
     controller = null; // Don't release — not ours
   }
 
@@ -145,7 +167,9 @@ public class SearchActivity extends AppCompatActivity {
     tvYtStatus = findViewById(R.id.tvYtStatus);
     rv = findViewById(R.id.rvSearchResults);
     selectionBar = findViewById(R.id.selectionBar);
+    filterContainer = findViewById(R.id.filterContainer);
     tvSelectionCount = findViewById(R.id.tvSelectionCount);
+    chipGroupFilter = findViewById(R.id.chipGroupFilter);
 
     btnDownloadSelected = findViewById(R.id.btnDownloadSelected);
     btnCancelSelected = findViewById(R.id.btnCancelSelection);
@@ -158,6 +182,36 @@ public class SearchActivity extends AppCompatActivity {
 
     btnBack.setOnClickListener(v -> finish());
     btnClear.setOnClickListener(v -> etSearch.setText(""));
+
+    wireFilterChips();
+  }
+
+  // ── Filter chips ──────────────────────────────────────────────────────────
+
+  private void wireFilterChips() {
+    // Map chip IDs to their NewPipe filter constants
+    // Chip IDs are defined in activity_search.xml
+    chipGroupFilter.setOnCheckedStateChangeListener((group, checkedIds) -> {
+      if (checkedIds.isEmpty()) return; // single-select, shouldn't happen
+
+      int checkedId = checkedIds.get(0);
+      if (checkedId == R.id.chipFilterSongs) {
+        activeFilter = YoutubeSearchQueryHandlerFactory.MUSIC_SONGS;
+      } else if (checkedId == R.id.chipFilterMusicVideos) {
+        activeFilter = YoutubeSearchQueryHandlerFactory.MUSIC_VIDEOS;
+      } else if (checkedId == R.id.chipFilterVideos) {
+        activeFilter = YoutubeSearchQueryHandlerFactory.VIDEOS;
+      } else if (checkedId == R.id.chipFilterAlbums) {
+        activeFilter = YoutubeSearchQueryHandlerFactory.MUSIC_ALBUMS;
+      } else if (checkedId == R.id.chipFilterArtists) {
+        activeFilter = YoutubeSearchQueryHandlerFactory.MUSIC_ARTISTS;
+      }
+
+      // Re-fire the last search with the new filter if one has been run
+      if (lastYtQuery != null && !lastYtQuery.isEmpty()) {
+        searchYt(lastYtQuery);
+      }
+    });
   }
 
   // ── RecyclerView ──────────────────────────────────────────────────────────
@@ -184,11 +238,35 @@ public class SearchActivity extends AppCompatActivity {
       public void onYtMore(YtTrack track, View anchor) {
         showYtTrackMenu(track, anchor);
       }
+
+      @Override
+      public void onYtAlbumClick(me.ash.resonance.yt.YtAlbum album) {
+        android.content.Intent intent = new android.content.Intent(SearchActivity.this, AlbumDetailActivity.class);
+        intent.putExtra("browseId", album.browseId());
+        intent.putExtra("title", album.title());
+        intent.putExtra("artist", album.artist());
+        intent.putExtra("thumb", album.thumbnailUrl());
+        startActivity(intent);
+      }
+
+      @Override
+      public void onYtArtistClick(me.ash.resonance.yt.YtArtist artist) {
+        android.content.Intent intent = new android.content.Intent(SearchActivity.this, ArtistDetailActivity.class);
+        intent.putExtra("channelId", artist.channelId());
+        intent.putExtra("name", artist.name());
+        intent.putExtra("thumb", artist.thumbnailUrl());
+        startActivity(intent);
+      }
     });
     selectionManager = new SelectionManager<>(count -> {
       if (count == 0) {
         selectionBar.setVisibility(View.GONE);
+        adapter.notifyDataSetChanged();
       } else {
+        if (selectionBar.getVisibility() == View.GONE) {
+          // Just started selection mode
+          adapter.notifyDataSetChanged();
+        }
         selectionBar.setVisibility(View.VISIBLE);
         tvSelectionCount.setText(count + " selected");
       }
@@ -230,13 +308,31 @@ public class SearchActivity extends AppCompatActivity {
 
   // ── YT Music search ───────────────────────────────────────────────────────
 
+  @OptIn(markerClass = UnstableApi.class)
   private void searchYt(String query) {
     if (query.isEmpty()) return;
 
-    progressYt.setVisibility(View.VISIBLE);
-    tvYtStatus.setVisibility(View.GONE);
+    filterContainer.setVisibility(View.VISIBLE);
+    lastYtQuery = query;
 
-    YtMusicService.get().search(query, new YtMusicService.SearchCallback() {
+    if (YoutubeSearchQueryHandlerFactory.MUSIC_ALBUMS.equals(activeFilter)) {
+      searchAlbums(query);
+      return;
+    } else if (YoutubeSearchQueryHandlerFactory.MUSIC_ARTISTS.equals(activeFilter)) {
+      searchArtists(query);
+      return;
+    }
+
+    // Only show the spinner for actual network fetches; cache hits return
+    // synchronously so the spinner would just flash for one frame.
+    boolean cached = YtMusicService.get().isSearchCached(query, activeFilter);
+    progressYt.setVisibility(cached ? View.GONE : View.VISIBLE);
+    tvYtStatus.setVisibility(View.GONE);
+    if (!cached) {
+      adapter.setYtResults(new ArrayList<>()); // clear stale results only on real fetch
+    }
+
+    YtMusicService.get().search(query, activeFilter, new YtMusicService.SearchCallback() {
       @Override
       public void onResults(List<YtTrack> tracks) {
         runOnUiThread(() -> {
@@ -316,28 +412,20 @@ public class SearchActivity extends AppCompatActivity {
       queue.add(buildLocalItem(s));
       if (s.id == song.id) startIndex = i;
     }
-    QueueManager.get().setOriginalItems(queue);
-    controller.setMediaItems(queue, startIndex, 0);
-    controller.prepare();
-    controller.play();
-    startActivity(new Intent(this, NowPlayingActivity.class));
+    QueueManager.get().setQueue(controller, queue, startIndex);
   }
 
-  private void streamYtTrack(YtTrack track, boolean playNext) {
+  /**
+   * Inserts this YT track immediately after the current item (Play Next).
+   */
+  private void playYtNext(YtTrack track) {
     if (controller == null) {
       toast("Player not ready");
       return;
     }
-    MediaItem item = buildYtItem(track);
-    if (playNext) {
-      QueueManager.get().playNext(controller, item);
-      toast("Playing next: " + track.title);
-    } else {
-      List<MediaItem> queue = List.of(item);
-      QueueManager.get().setOriginalItems(queue);
-      controller.setMediaItems(queue, 0, 0);
-      startActivity(new Intent(SearchActivity.this, NowPlayingActivity.class));
-    }
+    QueueManager.get().playNext(controller, buildYtItem(track));
+    QueueManager.get().setOriginalItems(getControllerQueue());
+    toast("Playing next: " + track.title);
   }
 
   private void addYtToQueue(YtTrack track) {
@@ -406,69 +494,92 @@ public class SearchActivity extends AppCompatActivity {
     menu.getMenu().add(0, 3, 0, "Add to Playlist");
     menu.getMenu().add(0, 4, 0, "Download");
 
-    menu.setOnMenuItemClickListener(item -> {
-      switch (item.getItemId()) {
-        case 0:
-        case 1:
-          startRadio(track);
-          return true;
-        case 2:
-          addYtToQueue(track);
-          return true;
-        case 3:
-          showYtAddToPlaylist(track);
-          return true;
-        case 4:
-          downloadYtTrack(track);
-          return true;
+    menu.setOnMenuItemClickListener(item -> switch (item.getItemId()) {
+      case 0 -> {
+        startRadio(track);
+        yield true;
       }
-      return false;
+      case 1 -> {
+        playYtNext(track);
+        yield true;
+      }
+      case 2 -> {
+        addYtToQueue(track);
+        yield true;
+      }
+      case 3 -> {
+        showYtAddToPlaylist(track);
+        yield true;
+      }
+      case 4 -> {
+        downloadYtTrack(track);
+        yield true;
+      }
+      default -> false;
     });
     menu.show();
   }
 
   private void startRadio(YtTrack seed) {
     if (controller == null) {
-      // Controller not yet connected — wait for it then retry
       ((me.ash.resonance.ResonanceApp) getApplication())
               .getSharedController(ctrl -> {
                 controller = ctrl;
-                startRadio(seed); // retry once ready
+                startRadio(seed);
               });
       return;
     }
 
+    // 1. Play the seed immediately so the app feels responsive
+    MediaItem seedItem = buildYtItem(seed);
+    List<MediaItem> initialQueue = new ArrayList<>();
+    initialQueue.add(seedItem);
+
+    // Clear radio session temporarily while we set the new queue
+    QueueManager.get().setActiveRadio(null);
+    QueueManager.get().setQueue(controller, initialQueue, 0);
+
+    // 2. Fetch related songs in the background
     RadioSession session = new RadioSession(seed);
     QueueManager.get().setActiveRadio(session);
+    session.markSeen(seed.videoId);
 
     RadioEngine engine = new RadioEngine(session);
-
     engine.fetchNext(tracks -> runOnUiThread(() -> {
+      if (controller == null) return;
 
-      List<MediaItem> queue = new ArrayList<>();
-      queue.add(buildYtItem(seed));
-      session.markSeen(seed.videoId);
-
+      // Append fetched tracks to the end of the queue
       for (YtTrack t : tracks) {
-        queue.add(buildYtItem(t));
-        session.markSeen(t.videoId);
+        if (!session.isSeen(t.videoId)) {
+          QueueManager.get().addToQueue(controller, buildYtItem(t));
+          session.markSeen(t.videoId);
+        }
       }
 
-      QueueManager.get().setOriginalItems(queue);
-      controller.setMediaItems(queue, 0, 0);
-      controller.prepare();
-      controller.play();
-
-      startActivity(new Intent(this, NowPlayingActivity.class));
-
-    }));  // ← close runOnUiThread and fetchNext
+      // Sync originalItems for shuffle logic
+      QueueManager.get().setOriginalItems(getControllerQueue());
+    }));
   }
 
   private void showYtAddToPlaylist(YtTrack track) {
-    // We use the video ID as the mediaId so PlaylistManager can store it
-    PlaylistPickerSheet
-            .newInstance(track.videoId)
-            .show(getSupportFragmentManager(), PlaylistPickerSheet.TAG);
+    // Save metadata to RemoteSongEntity cache so it shows in the playlist UI
+    new Thread(() -> {
+      me.ash.resonance.db.RemoteSongEntity re = new me.ash.resonance.db.RemoteSongEntity();
+      re.videoId = track.videoId;
+      re.title = track.title;
+      re.artist = track.artist;
+      re.album = track.albumName != null ? track.albumName : "YouTube Music";
+      re.duration = track.formattedDuration();
+      re.durationSeconds = track.durationSeconds;
+      re.thumbnailUrl = track.thumbnailUrl;
+      me.ash.resonance.db.AppDatabase.get(this).remoteSongDao().insert(re);
+
+      runOnUiThread(() -> {
+        PlaylistPickerSheet
+                .newInstance(track.videoId)
+                .show(getSupportFragmentManager(), PlaylistPickerSheet.TAG);
+      });
+    }).start();
   }
 
   // ── Download ──────────────────────────────────────────────────────────────
@@ -493,7 +604,7 @@ public class SearchActivity extends AppCompatActivity {
               public void onSuccess(String title) {
                 runOnUiThread(() -> {
                   track.isDownloading = false;
-                  adapter.notifyYtTrackChanged(track);
+                  adapter.markAsDownloaded(track.videoId);
                   toast("Downloaded: " + title);
                 });
               }
@@ -527,6 +638,64 @@ public class SearchActivity extends AppCompatActivity {
     }
   }
 
+  private void searchAlbums(String query) {
+    progressYt.setVisibility(View.VISIBLE);
+    tvYtStatus.setVisibility(View.GONE);
+    adapter.setAlbumResults(new ArrayList<>());
+
+    YtMusicService.get().searchAlbums(query, new YtMusicService.AlbumCallback() {
+      @Override
+      public void onResults(List<me.ash.resonance.yt.YtAlbum> albums) {
+        runOnUiThread(() -> {
+          progressYt.setVisibility(View.GONE);
+          if (albums.isEmpty()) {
+            tvYtStatus.setVisibility(View.VISIBLE);
+            tvYtStatus.setText("No albums found");
+          }
+          adapter.setAlbumResults(albums);
+        });
+      }
+
+      @Override
+      public void onError(Exception e) {
+        runOnUiThread(() -> {
+          progressYt.setVisibility(View.GONE);
+          tvYtStatus.setVisibility(View.VISIBLE);
+          tvYtStatus.setText("Error searching albums");
+        });
+      }
+    });
+  }
+
+  private void searchArtists(String query) {
+    progressYt.setVisibility(View.VISIBLE);
+    tvYtStatus.setVisibility(View.GONE);
+    adapter.setArtistResults(new ArrayList<>());
+
+    YtMusicService.get().searchArtists(query, new YtMusicService.ArtistCallback() {
+      @Override
+      public void onResults(List<me.ash.resonance.yt.YtArtist> artists) {
+        runOnUiThread(() -> {
+          progressYt.setVisibility(View.GONE);
+          if (artists.isEmpty()) {
+            tvYtStatus.setVisibility(View.VISIBLE);
+            tvYtStatus.setText("No artists found");
+          }
+          adapter.setArtistResults(artists);
+        });
+      }
+
+      @Override
+      public void onError(Exception e) {
+        runOnUiThread(() -> {
+          progressYt.setVisibility(View.GONE);
+          tvYtStatus.setVisibility(View.VISIBLE);
+          tvYtStatus.setText("Error searching artists");
+        });
+      }
+    });
+  }
+
   /**
    * Walk the adapter's current YT items to find a track by videoId.
    */
@@ -538,7 +707,11 @@ public class SearchActivity extends AppCompatActivity {
 
   private void connectController() {
     ((me.ash.resonance.ResonanceApp) getApplication())
-            .getSharedController(ctrl -> controller = ctrl);
+            .getSharedController(ctrl -> {
+              controller = ctrl;
+              miniPlayerManager = new MiniPlayerManager(this);
+              miniPlayerManager.init(controller);
+            });
   }
 
   // ── MediaItem builders ────────────────────────────────────────────────────

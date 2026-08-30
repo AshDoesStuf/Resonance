@@ -3,7 +3,9 @@ package me.ash.resonance;// In ResonanceApp.java, add these fields and methods:
 import android.app.Application;
 import android.content.ComponentName;
 
+import androidx.annotation.OptIn;
 import androidx.core.content.ContextCompat;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.session.MediaController;
 import androidx.media3.session.SessionToken;
 
@@ -20,17 +22,24 @@ import me.ash.resonance.yt.YtMusicService;
 
 public class ResonanceApp extends Application {
 
+  private static ResonanceApp instance;
+
+  public static ResonanceApp getInstance() {
+    return instance;
+  }
+
   private final List<ControllerListener> pendingListeners = new ArrayList<>();
   private ListenableFuture<MediaController> controllerFuture;
   private MediaController sharedController;
   private PlaybackSessionManager playbackSessionManager;
 
+  @OptIn(markerClass = UnstableApi.class)
   @Override
   public void onCreate() {
     super.onCreate();
+    instance = this;
     DynamicColors.applyToActivitiesIfAvailable(this);
     YtMusicService.init(this);
-    initSharedController();
   }
 
   private void initSharedController() {
@@ -74,12 +83,15 @@ public class ResonanceApp extends Application {
   }
 
   public void getSharedController(ControllerListener listener) {
-    if (sharedController != null) {
-      // Already ready — call back immediately
+    if (sharedController != null && playbackSessionManager != null) {
+      // Both ready — call back immediately
       listener.onControllerReady(sharedController);
     } else {
-      // Queue it — will be called once the future resolves
+      // Queue it — will be called once the future resolves in initSharedController
       pendingListeners.add(listener);
+      if (controllerFuture == null) {
+        initSharedController();
+      }
     }
   }
 

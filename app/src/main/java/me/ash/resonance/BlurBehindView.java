@@ -1,41 +1,61 @@
 package me.ash.resonance;
 
-import android.animation.ValueAnimator;
-import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
+import android.graphics.Outline;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RenderEffect;
+import android.graphics.RenderNode;
 import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.View;
-import android.view.animation.LinearInterpolator;
 
-import me.ash.resonance.ui.GlassStyle;
-import me.ash.resonance.ui.GlassStyleManager;
-
+/**
+ * A clean, AOSP-style "frosted glass" panel.
+ * <p>
+ * Recipe (mirrors the official window-blur guidance, adapted for an
+ * in-window view since cross-window blur APIs only blur OTHER windows):
+ * <p>
+ * 1. Capture: snapshot the decor view behind this view into a Bitmap.
+ * 2. Blur:    run that bitmap through a RenderNode with a BlurEffect
+ * (radius ~80px, matching the "frosted glass" guidance).
+ * 3. Tint:    a single translucent dark layer over the blur for legibility.
+ * 4. Specular: a soft highlight along the top edge ("lit rim").
+ * 5. Border:  a 1dp ~20% white hairline outline.
+ * <p>
+ * No noise, no animated highlights, no per-style overlays — just the
+ * minimal set of layers that reads as "glass" on a real OS.
+ */
 public class BlurBehindView extends View {
 
-  // ── shared ────────────────────────────────────────────────────────────────
-  private final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG);
+  // Matches the AOSP guidance: ~80px gives a good frosted-glass effect.
+  // Converted to a density-aware value so it reads consistently across devices.
+  private static final float BLUR_RADIUS_DP = 28f;
+
+  // Single translucent tint — dark enough for text legibility, light enough
+  // that the blurred content still reads through.
+  // Increased opacity for a denser "acrylic" feel (approx 70%).
+  private static final int TINT_COLOR = 0xB3121212;
+
+  // 1dp hairline at ~20% white — the single most important "glass" cue.
+  private static final int BORDER_COLOR = 0x33FFFFFF;
+
+  private final Paint backdropPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+  private final Paint overlayPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+  private final Paint borderPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
   private final Path clipPath = new Path();
-  private Bitmap buffer;
-  private Canvas bufferCanvas;
-  private boolean capturing;
+  private final Path borderPath = new Path();
 
-  private GlassStyleManager styleManager;
-  private androidx.lifecycle.Observer<GlassStyle> styleObserver;
+  private Bitmap capturedBackdrop;
+  private Canvas captureCanvas;
+  private boolean capturing = false;
 
-  // ── liquid shimmer ────────────────────────────────────────────────────────
-  private float shimmerOffset = 0f;          // 0..1 normalised position
-  private ValueAnimator shimmerAnimator;
-
-  // ── style ─────────────────────────────────────────────────────────────────
-  private GlassStyle style;
+  private RenderNode blurNode;
+  private int blurNodeW, blurNodeH;
 
   public BlurBehindView(Context context) {
     super(context);
@@ -49,235 +69,178 @@ public class BlurBehindView extends View {
 
   private void init() {
     setWillNotDraw(false);
-    // Isolate this view's rendering — prevents blur bleeding onto siblings
+    // Hardware layer so compositing works correctly. No RenderEffect is set
+    // on the view itself — that would blur the overlays/border too.
     setLayerType(LAYER_TYPE_HARDWARE, null);
 
-    styleManager = GlassStyleManager.get(getContext());
-    style = styleManager.current();
-    applyBlurEffect();
-
-    // Observe live changes
-    styleObserver = newStyle -> {
-      setStyle(newStyle);
-    };
-    styleManager.observe().observeForever(styleObserver);
-
-    if (style == GlassStyle.LIQUID) startShimmer();
+    float density = getResources().getDisplayMetrics().density;
+    borderPaint.setStyle(Paint.Style.STROKE);
+    borderPaint.setStrokeWidth(density); // 1dp
+    borderPaint.setColor(BORDER_COLOR);
   }
-
-  // ── public API ────────────────────────────────────────────────────────────
 
   /**
-   * Call after saving a new style preference to instantly update all instances.
+   * Call if you need to force a redraw (e.g. after the backdrop changes).
    */
-  public void setStyle(GlassStyle newStyle) {
-    this.style = newStyle;
-    applyBlurEffect();
-    if (newStyle == GlassStyle.LIQUID) {
-      startShimmer();
-    } else {
-      stopShimmer();
-    }
-    postInvalidate();
-  }
-
   public void refresh() {
     if (!capturing) postInvalidateOnAnimation();
   }
 
-  // ── blur kernel ───────────────────────────────────────────────────────────
+  // ── blur node ──────────────────────────────────────────────────────────
 
-  private void applyBlurEffect() {
-    float r = (style == GlassStyle.LIQUID) ? 18f : 14f;
-    setRenderEffect(
-            RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP)
-    );
+  private void rebuildBlurNode(int w, int h) {
+    if (w <= 0 || h <= 0) return;
+    float r = BLUR_RADIUS_DP * getResources().getDisplayMetrics().density;
+    blurNode = new RenderNode("backdrop_blur");
+    blurNode.setPosition(0, 0, w, h);
+    blurNode.setRenderEffect(
+            RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP));
+    blurNodeW = w;
+    blurNodeH = h;
   }
 
-  // ── shimmer animator (Liquid only) ────────────────────────────────────────
-
-  private void startShimmer() {
-    if (shimmerAnimator != null && shimmerAnimator.isRunning()) return;
-    shimmerAnimator = ValueAnimator.ofFloat(-0.4f, 1.4f);
-    shimmerAnimator.setDuration(2800);
-    shimmerAnimator.setRepeatCount(ValueAnimator.INFINITE);
-    shimmerAnimator.setInterpolator(new LinearInterpolator());
-    shimmerAnimator.addUpdateListener(a -> {
-      shimmerOffset = (float) a.getAnimatedValue();
-      if (!capturing) postInvalidateOnAnimation();
-    });
-    shimmerAnimator.start();
+  private int getBlurPad() {
+    return (int) Math.ceil(BLUR_RADIUS_DP * getResources().getDisplayMetrics().density);
   }
 
-  private void stopShimmer() {
-    if (shimmerAnimator != null) {
-      shimmerAnimator.cancel();
-      shimmerAnimator = null;
-    }
-  }
-
-  // ── draw ──────────────────────────────────────────────────────────────────
+  // ── size / lifecycle ──────────────────────────────────────────────────
 
   @Override
-  protected void onDraw(Canvas canvas) {
-    if (capturing) return;
+  protected void onSizeChanged(int w, int h, int oldW, int oldH) {
+    super.onSizeChanged(w, h, oldW, oldH);
+    if (w <= 0 || h <= 0) return;
 
-    // ── 1. clip to rounded rect ───────────────────────────────────────────
-    clipPath.reset();
-    float inset = getResources().getDisplayMetrics().density; // 1dp in px
-    clipPath.addRoundRect(inset, inset, getWidth() - inset, getHeight() - inset,
-            39f, 39f, Path.Direction.CW);
-    canvas.save();
-    canvas.clipPath(clipPath);
-
-    // ── 2. capture what's behind this view ────────────────────────────────
-    View root = ((Activity) getContext()).getWindow().getDecorView();
-    int w = getWidth(), h = getHeight();
-    if (w <= 0 || h <= 0) {
-      canvas.restore();
-      return;
+    // Bitmap and RenderNode are now managed in onDraw/captureBackdrop
+    // to account for dynamic padding.
+    if (capturedBackdrop != null) {
+      capturedBackdrop.recycle();
+      capturedBackdrop = null;
     }
-
-    if (buffer == null || buffer.getWidth() != w || buffer.getHeight() != h) {
-      if (buffer != null) buffer.recycle();
-      buffer = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-      bufferCanvas = new Canvas(buffer);
-    }
-
-    buffer.eraseColor(Color.TRANSPARENT);
-    try {
-      capturing = true;
-      setVisibility(INVISIBLE);
-
-      int[] rootPos = new int[2], myPos = new int[2];
-      root.getLocationOnScreen(rootPos);
-      getLocationOnScreen(myPos);
-
-      bufferCanvas.save();
-      bufferCanvas.translate(-(myPos[0] - rootPos[0]), -(myPos[1] - rootPos[1]));
-      root.draw(bufferCanvas);
-      bufferCanvas.restore();
-    } finally {
-      setVisibility(VISIBLE);
-      capturing = false;
-    }
-
-    canvas.drawBitmap(buffer, 0, 0, paint);
-
-    // ── 3. style-specific overlay ─────────────────────────────────────────
-    if (style == GlassStyle.LIQUID) {
-      drawLiquid(canvas, w, h);
-    } else {
-      drawFrosted(canvas, w, h);
-    }
-
-    canvas.restore();
-
-    setOutlineProvider(new android.view.ViewOutlineProvider() {
-      @Override
-      public void getOutline(View view, android.graphics.Outline outline) {
-        float radius = getResources().getDisplayMetrics().density * 40; // matches 40dp
-        outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
-      }
-    });
-    setClipToOutline(true);
-  }
-
-  // ── Frosted overlay ───────────────────────────────────────────────────────
-
-  private void drawFrosted(Canvas canvas, int w, int h) {
-    // Semi-opaque dark tint — this is what makes it feel like frosted glass
-    // not a window. Tune the alpha (currently 0x55 = ~33%) to taste.
-    canvas.drawColor(0x55101520);
-
-    // Subtle warm/neutral fill so it doesn't look like a plain dark sheet
-    Paint tint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    tint.setShader(new LinearGradient(
-            0, 0, w, h,
-            new int[]{0x18FFFFFF, 0x08AABBCC},
-            null,
-            Shader.TileMode.CLAMP
-    ));
-    canvas.drawRect(0, 0, w, h, tint);
-
-    // Top-edge specular — the "glass rim" highlight
-    Paint topEdge = new Paint(Paint.ANTI_ALIAS_FLAG);
-    topEdge.setShader(new LinearGradient(
-            0, 0, 0, 20,
-            0x22FFFFFF, 0x00FFFFFF,
-            Shader.TileMode.CLAMP
-    ));
-    canvas.drawRect(0, 0, w, 20, topEdge);
-  }
-
-  // ── Liquid Glass overlay ──────────────────────────────────────────────────
-
-  private void drawLiquid(Canvas canvas, int w, int h) {
-    // Same near-zero base as frosted — difference is motion, not opacity
-    canvas.drawColor(0x08000000);
-
-    // Band 1 — slow wide sweep
-    float band1X = shimmerOffset * (w + 260) - 130;
-    Paint band = new Paint(Paint.ANTI_ALIAS_FLAG);
-    band.setShader(new LinearGradient(
-            band1X - 80, 0, band1X + 80, 0,
-            new int[]{0x00FFFFFF, 0x12FFFFFF, 0x00FFFFFF},
-            null,
-            Shader.TileMode.CLAMP
-    ));
-    canvas.drawRect(0, 0, w, h, band);
-
-    // Band 2 — narrower, offset phase, moves slightly faster
-    float band2X = ((shimmerOffset + 0.5f) % 1.4f - 0.2f) * (w + 200) - 100;
-    band.setShader(new LinearGradient(
-            band2X - 40, 0, band2X + 40, 0,
-            new int[]{0x00FFFFFF, 0x0AFFFFFF, 0x00FFFFFF},
-            null,
-            Shader.TileMode.CLAMP
-    ));
-    canvas.drawRect(0, 0, w, h, band);
-
-    // Diagonal refraction — top-left corner catch, very faint
-    Paint refract = new Paint(Paint.ANTI_ALIAS_FLAG);
-    refract.setShader(new LinearGradient(
-            0, 0, w * 0.5f, h,
-            new int[]{0x0AFFFFFF, 0x00FFFFFF},
-            null,
-            Shader.TileMode.CLAMP
-    ));
-    canvas.drawRect(0, 0, w, h, refract);
-
-    // Same hairline top edge as frosted — slightly brighter to mark the liquid rim
-    Paint topEdge = new Paint(Paint.ANTI_ALIAS_FLAG);
-    topEdge.setShader(new LinearGradient(
-            0, 0, 0, 16,
-            0x1EFFFFFF, 0x00FFFFFF,
-            Shader.TileMode.CLAMP
-    ));
-    canvas.drawRect(0, 0, w, 16, topEdge);
-  }
-
-
-  // ── lifecycle ─────────────────────────────────────────────────────────────
-
-  @Override
-  protected void onAttachedToWindow() {
-    super.onAttachedToWindow();
-    if (style == GlassStyle.LIQUID) startShimmer();
+    blurNode = null;
   }
 
   @Override
   protected void onDetachedFromWindow() {
     super.onDetachedFromWindow();
-    stopShimmer();
-    // Stop observing to prevent leaks
-    if (styleObserver != null) {
-      styleManager.observe().removeObserver(styleObserver);
-      styleObserver = null;
+    if (capturedBackdrop != null) {
+      capturedBackdrop.recycle();
+      capturedBackdrop = null;
     }
-    if (buffer != null) {
-      buffer.recycle();
-      buffer = null;
+    blurNode = null;
+  }
+
+  // ── draw ──────────────────────────────────────────────────────────────
+
+  @Override
+  protected void onDraw(Canvas canvas) {
+    if (capturing) return;
+    int w = getWidth(), h = getHeight();
+    if (w <= 0 || h <= 0) return;
+
+    int pad = getBlurPad();
+    captureBackdrop(w, h, pad);
+
+    float[] radii = getCornerRadii();
+    clipPath.reset();
+    clipPath.addRoundRect(0, 0, w, h, radii, Path.Direction.CW);
+    canvas.save();
+    canvas.clipPath(clipPath);
+
+    // Blurred backdrop, isolated inside its own RenderNode.
+    // We draw a larger RenderNode to include the "context" padding,
+    // then translate it so the blurred content aligns perfectly.
+    int nw = w + 2 * pad;
+    int nh = h + 2 * pad;
+    if (blurNode == null || blurNodeW != nw || blurNodeH != nh) rebuildBlurNode(nw, nh);
+
+    Canvas nodeCanvas = blurNode.beginRecording();
+    if (capturedBackdrop != null) {
+      nodeCanvas.drawBitmap(capturedBackdrop, 0, 0, backdropPaint);
     }
+    blurNode.endRecording();
+
+    canvas.save();
+    canvas.translate(-pad, -pad);
+    canvas.drawRenderNode(blurNode);
+    canvas.restore();
+
+    // Single translucent tint for legibility.
+    canvas.drawColor(TINT_COLOR);
+
+    // Subtle top-edge specular ("lit rim").
+    // Reduced height and opacity to prevent "glow" on small components.
+    float dp = getResources().getDisplayMetrics().density;
+    float specH = 3f * dp;
+    overlayPaint.setShader(new LinearGradient(
+            0, 0, 0, specH,
+            0x20FFFFFF, 0x00FFFFFF,
+            Shader.TileMode.CLAMP
+    ));
+    canvas.drawRect(0, 0, w, specH, overlayPaint);
+
+    canvas.restore();
+
+    // Border drawn last, outside the clip, so the hairline sits cleanly
+    // on the edge of the shape.
+    drawGlassBorder(canvas, w, h, radii);
+  }
+
+  private void captureBackdrop(int w, int h, int pad) {
+    View root = getRootView();
+    int bw = w + 2 * pad;
+    int bh = h + 2 * pad;
+
+    if (capturedBackdrop == null
+            || capturedBackdrop.getWidth() != bw
+            || capturedBackdrop.getHeight() != bh) {
+      if (capturedBackdrop != null) capturedBackdrop.recycle();
+      capturedBackdrop = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888);
+      captureCanvas = new Canvas(capturedBackdrop);
+    }
+    capturedBackdrop.eraseColor(Color.TRANSPARENT);
+    try {
+      capturing = true;
+      setVisibility(INVISIBLE);
+      int[] rootPos = new int[2], myPos = new int[2];
+      root.getLocationOnScreen(rootPos);
+      getLocationOnScreen(myPos);
+      captureCanvas.save();
+      // Offset capture by 'pad' to grab content outside our bounds
+      captureCanvas.translate(-(myPos[0] - rootPos[0] - pad), -(myPos[1] - rootPos[1] - pad));
+      root.draw(captureCanvas);
+      captureCanvas.restore();
+    } finally {
+      setVisibility(VISIBLE);
+      capturing = false;
+    }
+  }
+
+  private float[] getCornerRadii() {
+    Outline tmp = new Outline();
+    try {
+      getOutlineProvider().getOutline(this, tmp);
+    } catch (Exception ignored) {
+    }
+    float r = 0f;
+    try {
+      java.lang.reflect.Method m =
+              android.graphics.Outline.class.getDeclaredMethod("getRadius");
+      m.setAccessible(true);
+      Object val = m.invoke(tmp);
+      if (val instanceof Float) r = (Float) val;
+    } catch (Exception ignored) {
+    }
+
+    if (r > 0) return new float[]{r, r, r, r, r, r, r, r};
+    float top = 28f * getResources().getDisplayMetrics().density;
+    return new float[]{top, top, top, top, 0f, 0f, 0f, 0f};
+  }
+
+  private void drawGlassBorder(Canvas canvas, int w, int h, float[] radii) {
+    float sw = borderPaint.getStrokeWidth();
+    float half = sw / 2f;
+    borderPath.reset();
+    borderPath.addRoundRect(half, half, w - half, h - half, radii, Path.Direction.CW);
+    canvas.drawPath(borderPath, borderPaint);
   }
 }

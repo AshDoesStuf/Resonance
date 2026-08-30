@@ -59,7 +59,11 @@ public class AlbumsFragment extends Fragment {
     rv.setLayoutManager(new GridLayoutManager(requireContext(), 2));
 
 
-    adapter = new AlbumsAdapter(requireContext(), displayedAlbums, album -> startActivity(AlbumDetailActivity.createIntent(requireContext(), album)));
+    adapter = new AlbumsAdapter(requireContext(), displayedAlbums, album -> {
+      // Pass null for browseId, use local name/artist/artUri for local albums
+      String artUrl = album.artUri() != null ? album.artUri().toString() : null;
+      startActivity(AlbumDetailActivity.createIntent(requireContext(), null, album.name(), album.artist(), artUrl));
+    });
     rv.setAdapter(adapter);
 
     libraryReceiver = new android.content.BroadcastReceiver() {
@@ -82,7 +86,7 @@ public class AlbumsFragment extends Fragment {
   private void reloadData() {
     new Thread(() -> {
       List<Album> loaded = loadAlbums();
-      loaded.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
+      loaded.sort((a, b) -> a.name().compareToIgnoreCase(b.name()));
       requireActivity().runOnUiThread(() -> {
         allAlbums.clear();
         allAlbums.addAll(loaded);
@@ -152,8 +156,8 @@ public class AlbumsFragment extends Fragment {
     } else {
       String q = currentQuery.toLowerCase();
       for (Album a : allAlbums) {
-        if (a.name.toLowerCase().contains(q)
-                || (a.artist != null && a.artist.toLowerCase().contains(q))) {
+        if (a.name().toLowerCase().contains(q)
+                || (a.artist() != null && a.artist().toLowerCase().contains(q))) {
           displayedAlbums.add(a);
         }
       }

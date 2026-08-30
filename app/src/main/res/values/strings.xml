@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">Resonance</string>
+    <string name="listening_party">Listening Party</string>
+    <string name="start_listening_party">Start Listening Party</string>
+    <string name="stop_listening_party">Stop Listening Party</string>
+    <string name="session_active">Active</string>
+    <string name="session_inactive">Inactive</string>
+    <string name="connected_listeners">Connected Listeners</string>
+    <string name="session_code">SESSION CODE</string>
+    <string name="session_share_info">Share this code with friends to let them join your listening session.</string>
+    <string name="session_instructions">Nearby friends can discover and join your session to listen along in real-time.</string>
 </resources>

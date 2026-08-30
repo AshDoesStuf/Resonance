@@ -46,11 +46,11 @@ public class AlbumsAdapter extends RecyclerView.Adapter<AlbumsAdapter.VH> {
   public void onBindViewHolder(@NonNull VH holder, int position) {
     Album album = albums.get(position);
 
-    holder.tvAlbumName.setText(album.name);
-    holder.tvAlbumArtist.setText(album.artist);
+    holder.tvAlbumName.setText(album.name());
+    holder.tvAlbumArtist.setText(album.artist());
 
     Glide.with(context)
-            .load(album.artUri)
+            .load(album.artUri())
             .placeholder(R.drawable.ic_note_outlined)
             .error(R.drawable.ic_note_outlined)
             .transition(DrawableTransitionOptions.withCrossFade())
@@ -81,17 +81,17 @@ public class AlbumsAdapter extends RecyclerView.Adapter<AlbumsAdapter.VH> {
 
       @Override
       public boolean areItemsTheSame(int oldPos, int newPos) {
-        return oldList.get(oldPos).id == newList.get(newPos).id;
+        return oldList.get(oldPos).id() == newList.get(newPos).id();
       }
 
       @Override
       public boolean areContentsTheSame(int oldPos, int newPos) {
         Album a = oldList.get(oldPos);
         Album b = newList.get(newPos);
-        return Objects.equals(a.name, b.name)
-                && Objects.equals(a.artist, b.artist)
-                && a.songCount == b.songCount
-                && Objects.equals(a.artUri, b.artUri);
+        return Objects.equals(a.name(), b.name())
+                && Objects.equals(a.artist(), b.artist())
+                && a.songCount() == b.songCount()
+                && Objects.equals(a.artUri(), b.artUri());
       }
     });
 

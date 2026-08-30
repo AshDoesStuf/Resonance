@@ -1,5 +1,10 @@
 package me.ash.resonance.radio;
 
+import androidx.annotation.OptIn;
+import androidx.media3.common.util.UnstableApi;
+
+import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -16,6 +21,7 @@ public class RadioEngine {
     this.session = session;
   }
 
+  @OptIn(markerClass = UnstableApi.class)
   public void fetchNext(Consumer<List<YtTrack>> callback) {
 
     List<String> queries = session.queries();
@@ -25,7 +31,7 @@ public class RadioEngine {
 
     for (String q : queries) {
 
-      YtMusicService.get().search(q, new YtMusicService.SearchCallback() {
+      YtMusicService.get().search(q, YoutubeSearchQueryHandlerFactory.MUSIC_SONGS, new YtMusicService.SearchCallback() {
 
         @Override
         public void onResults(List<YtTrack> tracks) {

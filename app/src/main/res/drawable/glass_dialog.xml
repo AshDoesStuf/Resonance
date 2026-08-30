@@ -11,8 +11,8 @@
       <corners android:radius="20dp" />
       <gradient
           android:angle="270"
-          android:startColor="#1AFFFFFF"
-          android:endColor="#04FFFFFF"
+          android:startColor="@color/bg_sheet"
+          android:endColor="@color/bg_card"
           android:type="linear" />
     </shape>
   </item>

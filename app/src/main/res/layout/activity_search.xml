@@ -1,164 +1,225 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-  Search screen layout.
-
-  Structure:
-    ┌──────────────────────────────────┐
-    │  ← [search input field]    ✕     │  ← glass search bar
-    ├──────────────────────────────────┤
-    │  [local progress]                │
-    │  [yt progress / status]          │
-    ├──────────────────────────────────┤
-    │  RecyclerView (results)          │
-    └──────────────────────────────────┘
--->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/gradient_bg"
-    android:orientation="vertical">
+    android:background="@color/bg_primary">
 
-  <!-- ── Search bar ───────────────────────────────────────────────────────── -->
   <LinearLayout
       android:layout_width="match_parent"
-      android:layout_height="56dp"
-      android:layout_marginStart="12dp"
-      android:layout_marginTop="16dp"
-      android:layout_marginEnd="12dp"
-      android:background="@drawable/glass_pill"
-      android:elevation="8dp"
-      android:gravity="center_vertical"
-      android:orientation="horizontal"
-      android:paddingStart="4dp"
-      android:paddingEnd="4dp">
+      android:layout_height="match_parent"
+      android:orientation="vertical">
 
-    <!-- Back arrow -->
-    <ImageButton
-        android:id="@+id/btnSearchBack"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/ic_chevron_left"
-        app:tint="@color/text_primary" />
-
-    <!-- Query field -->
-    <EditText
-        android:id="@+id/etSearchQuery"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:background="@android:color/transparent"
-        android:hint="Search songs, artists…"
-        android:imeOptions="actionSearch"
-        android:inputType="text"
-        android:maxLines="1"
+    <!-- ── Search bar ───────────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/glass_pill"
+        android:elevation="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
         android:paddingStart="4dp"
-        android:singleLine="true"
-        android:textColor="@color/text_primary"
-        android:textSize="16sp" />
+        android:paddingEnd="4dp">
 
-    <!-- Clear button (hidden when empty) -->
-    <ImageButton
-        android:id="@+id/btnSearchClear"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/ic_close"
+      <!-- Back arrow -->
+      <ImageButton
+          android:id="@+id/btnSearchBack"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:background="?attr/selectableItemBackgroundBorderless"
+          android:src="@drawable/ic_chevron_left"
+          app:tint="@color/text_primary" />
+
+      <!-- Query field -->
+      <EditText
+          android:id="@+id/etSearchQuery"
+          android:layout_width="0dp"
+          android:layout_height="match_parent"
+          android:layout_weight="1"
+          android:background="@android:color/transparent"
+          android:hint="Search songs, artists…"
+          android:imeOptions="actionSearch"
+          android:inputType="text"
+          android:maxLines="1"
+          android:paddingStart="4dp"
+          android:singleLine="true"
+          android:textColor="@color/text_primary"
+          android:textSize="16sp" />
+
+      <!-- Clear button (hidden when empty) -->
+      <ImageButton
+          android:id="@+id/btnSearchClear"
+          android:layout_width="40dp"
+          android:layout_height="40dp"
+          android:background="?attr/selectableItemBackgroundBorderless"
+          android:src="@drawable/ic_close"
+          android:visibility="gone"
+          app:tint="@color/text_secondary" />
+
+    </LinearLayout>
+
+    <!-- ── Filter chips ─────────────────────────────────────────────────────── -->
+    <HorizontalScrollView
+        android:id="@+id/filterContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:scrollbars="none"
+        android:visibility="gone">
+
+      <com.google.android.material.chip.ChipGroup
+          android:id="@+id/chipGroupFilter"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:paddingStart="12dp"
+          android:paddingEnd="12dp"
+          app:chipSpacingHorizontal="6dp"
+          app:selectionRequired="true"
+          app:singleSelection="true">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipFilterSongs"
+            style="@style/Widget.Material3.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="Songs"
+            android:textColor="@color/text_primary"
+            app:checkedIconTint="@color/accent" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipFilterMusicVideos"
+            style="@style/Widget.Material3.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Music Videos"
+            android:textColor="@color/text_primary" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipFilterAlbums"
+            style="@style/Widget.Material3.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Albums"
+            android:textColor="@color/text_primary" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipFilterArtists"
+            style="@style/Widget.Material3.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Artists"
+            android:textColor="@color/text_primary" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipFilterVideos"
+            style="@style/Widget.Material3.Chip.Filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Videos"
+            android:textColor="@color/text_primary" />
+
+      </com.google.android.material.chip.ChipGroup>
+
+    </HorizontalScrollView>
+
+    <!-- ── Progress / status row ────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+      <!-- Shown while local filter runs (usually instant) -->
+      <ProgressBar
+          android:id="@+id/progressLocal"
+          style="?android:attr/progressBarStyleSmall"
+          android:layout_width="16dp"
+          android:layout_height="16dp"
+          android:layout_marginEnd="6dp"
+          android:indeterminateTint="@color/accent"
+          android:visibility="gone" />
+
+      <!-- Shown while YT search is in-flight -->
+      <ProgressBar
+          android:id="@+id/progressYt"
+          style="?android:attr/progressBarStyleSmall"
+          android:layout_width="16dp"
+          android:layout_height="16dp"
+          android:layout_marginEnd="6dp"
+          android:indeterminateTint="@color/accent_red"
+          android:visibility="gone" />
+
+      <TextView
+          android:id="@+id/tvYtStatus"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text=""
+          android:textColor="@color/text_muted"
+          android:textSize="12sp"
+          android:visibility="gone" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/selectionBar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="?attr/colorSurfaceVariant"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="8dp"
         android:visibility="gone"
-        app:tint="@color/text_secondary" />
+        tools:ignore="ExtraText">
 
-  </LinearLayout>
+      <TextView
+          android:id="@+id/tvSelectionCount"
+          android:layout_width="0dp"
+          android:layout_height="wrap_content"
+          android:layout_weight="1"
+          android:textAppearance="?attr/textAppearanceTitleMedium" />
 
-  <!-- ── Progress / status row ────────────────────────────────────────────── -->
-  <LinearLayout
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:layout_marginStart="16dp"
-      android:layout_marginTop="8dp"
-      android:layout_marginEnd="16dp"
-      android:gravity="center_vertical"
-      android:orientation="horizontal">
+      <ImageButton
+          android:id="@+id/btnDownloadSelected"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:background="?attr/selectableItemBackgroundBorderless"
+          android:contentDescription="Download selected"
+          android:paddingStart="2sp"
+          android:paddingEnd="2sp"
+          android:src="@drawable/ic_download" />
 
-    <!-- Shown while local filter runs (usually instant) -->
-    <ProgressBar
-        android:id="@+id/progressLocal"
-        style="?android:attr/progressBarStyleSmall"
-        android:layout_width="16dp"
-        android:layout_height="16dp"
-        android:layout_marginEnd="6dp"
-        android:indeterminateTint="@color/accent"
-        android:visibility="gone" />
+      <ImageButton
+          android:id="@+id/btnCancelSelection"
+          android:layout_width="44dp"
+          android:layout_height="44dp"
+          android:background="?attr/selectableItemBackgroundBorderless"
+          android:contentDescription="Cancel selection"
+          android:paddingStart="2sp"
+          android:paddingEnd="2sp"
+          android:src="@drawable/ic_close" />
+    </LinearLayout>
 
-    <!-- Shown while YT search is in-flight -->
-    <ProgressBar
-        android:id="@+id/progressYt"
-        style="?android:attr/progressBarStyleSmall"
-        android:layout_width="16dp"
-        android:layout_height="16dp"
-        android:layout_marginEnd="6dp"
-        android:indeterminateTint="@color/accent_red"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/tvYtStatus"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textColor="@color/text_muted"
-        android:textSize="12sp"
-        android:visibility="gone" />
-
-  </LinearLayout>
-
-  <LinearLayout
-      android:id="@+id/selectionBar"
-      android:layout_width="match_parent"
-      android:layout_height="56dp"
-      android:background="?attr/colorSurfaceVariant"
-      android:gravity="center_vertical"
-      android:orientation="horizontal"
-      android:paddingStart="16dp"
-      android:paddingEnd="8dp"
-      android:visibility="gone"
-      tools:ignore="ExtraText">
-
-    <TextView
-        android:id="@+id/tvSelectionCount"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
+    <!-- ── Results list ──────────────────────────────────────────────────────── -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSearchResults"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
         android:layout_weight="1"
-        android:textAppearance="?attr/textAppearanceTitleMedium" />
+        android:clipToPadding="false"
+        android:paddingBottom="96dp" />
 
-    <ImageButton
-        android:id="@+id/btnDownloadSelected"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Download selected"
-        android:paddingStart="2sp"
-        android:paddingEnd="2sp"
-        android:src="@drawable/ic_download" />
-
-    <ImageButton
-        android:id="@+id/btnCancelSelection"
-        android:layout_width="44dp"
-        android:layout_height="44dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Cancel selection"
-        android:paddingStart="2sp"
-        android:paddingEnd="2sp"
-        android:src="@drawable/ic_close" />
   </LinearLayout>
 
-  <!-- ── Results list ──────────────────────────────────────────────────────── -->
-  <androidx.recyclerview.widget.RecyclerView
-      android:id="@+id/rvSearchResults"
-      android:layout_width="match_parent"
-      android:layout_height="0dp"
-      android:layout_marginTop="8dp"
-      android:layout_weight="1"
-      android:clipToPadding="false"
-      android:paddingBottom="80dp" />
+  <include layout="@layout/mini_player" />
 
-</LinearLayout>
+</FrameLayout>

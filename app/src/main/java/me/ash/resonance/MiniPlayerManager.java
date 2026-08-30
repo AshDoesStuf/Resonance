@@ -2,9 +2,12 @@ package me.ash.resonance;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.graphics.Outline;
+import android.graphics.drawable.GradientDrawable;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewOutlineProvider;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -23,8 +26,8 @@ import com.bumptech.glide.request.RequestOptions;
 
 import me.ash.resonance.playback.PlaybackSessionManager;
 import me.ash.resonance.queue.QueueManager;
-import me.ash.resonance.ui.GlassStyleManager;
 import me.ash.resonance.ui.PlayerPosition;
+import me.ash.resonance.util.MiniPlayerPositionManager;
 
 /**
  * Changes from original:
@@ -78,6 +81,8 @@ public class MiniPlayerManager {
                     .getPlaybackSessionManager();
 
     miniPlayer = activity.findViewById(R.id.miniPlayer);
+    if (miniPlayer == null) return; // Not present in this activity layout
+
     miniArt = activity.findViewById(R.id.miniArt);
     miniTitle = activity.findViewById(R.id.miniTitle);
     miniArtist = activity.findViewById(R.id.miniArtist);
@@ -92,9 +97,7 @@ public class MiniPlayerManager {
     miniNext.setOnClickListener(v -> session.next());
     miniPrevious.setOnClickListener(v -> session.previous());
     miniQueue.setOnClickListener(v ->
-            me.ash.resonance.queue.QueueBottomSheet.newInstance()
-                    .show(activity.getSupportFragmentManager(),
-                            me.ash.resonance.queue.QueueBottomSheet.TAG));
+            me.ash.resonance.queue.QueueActivity.start(activity));
 
     attachPlayerListener();
     attachSwipeUpGesture();
@@ -115,8 +118,8 @@ public class MiniPlayerManager {
     } else {
       // Nothing loaded yet — show from saved state if available
       QueueManager.SavedQueueState pending = QueueManager.get().getPendingRestore();
-      if (pending != null && !pending.items.isEmpty()) {
-        MediaItem saved = pending.items.get(pending.index);
+      if (pending != null && !pending.items().isEmpty()) {
+        MediaItem saved = pending.items().get(pending.index());
         updateUI(saved);
         miniPlayer.setVisibility(View.VISIBLE);
         miniPlayer.post(() -> {
@@ -126,8 +129,8 @@ public class MiniPlayerManager {
       }
     }
 
-    GlassStyleManager mgr = GlassStyleManager.get(activity);
-    positionObserver = pos -> applyPosition(pos);
+    MiniPlayerPositionManager mgr = MiniPlayerPositionManager.get(activity);
+    positionObserver = this::applyPosition;
     mgr.observePosition().observeForever(positionObserver);
     applyPosition(mgr.currentPosition());
   }
@@ -155,26 +158,115 @@ public class MiniPlayerManager {
   private void applyPosition(PlayerPosition pos) {
     if (miniPlayer == null) return;
 
+    float density = activity.getResources().getDisplayMetrics().density;
+    int dp16 = Math.round(16 * density);
+
     ViewGroup.MarginLayoutParams lp =
             (ViewGroup.MarginLayoutParams) miniPlayer.getLayoutParams();
 
-    int dp16 = (int) (16 * activity.getResources().getDisplayMetrics().density);
-
     if (pos == PlayerPosition.DOCKED) {
-      // Stretch edge-to-edge, sit flush at bottom, keep pill shape via background
+      applyDockedShape();
+
       lp.leftMargin = 0;
       lp.rightMargin = 0;
       lp.bottomMargin = 0;
       miniPlayer.setLayoutParams(lp);
       miniPlayer.setElevation(0f);
+
+      // Push content up above the nav bar so nothing hides behind it
+      int navBarHeight = getNavBarHeight();
+      miniPlayer.setPadding(0, 0, 0, navBarHeight);
+
     } else {
-      // Floating — restore original margins
+      applyFloatingShape();   // un-comment this
+
       lp.leftMargin = dp16;
       lp.rightMargin = dp16;
       lp.bottomMargin = dp16;
       miniPlayer.setLayoutParams(lp);
       miniPlayer.setElevation(0f);
+
+      miniPlayer.setPadding(0, 0, 0, 0);
     }
+  }
+
+  /**
+   * Docked: flat on the bottom, rounded on the top, no pill outline border.
+   * The background becomes a plain surface-coloured rectangle with only
+   * top corners rounded so it merges flush with the nav bar.
+   */
+  private void applyDockedShape() {
+    float density = activity.getResources().getDisplayMetrics().density;
+    // Match the pill's full corner radius for the top; 0 for bottom
+    float topRadius = 28 * density;
+
+    GradientDrawable bg = new GradientDrawable();
+    bg.setColor(activity.getColor(R.color.bg_card));
+    bg.setAlpha(10);
+    bg.setCornerRadii(new float[]{
+            topRadius, topRadius,   // top-left
+            topRadius, topRadius,   // top-right
+            0f, 0f,                 // bottom-right  ← flush
+            0f, 0f                  // bottom-left   ← flush
+    });
+    miniPlayer.setBackground(bg);
+
+    // Clip children to the same top-rounded, bottom-flat shape
+    miniPlayer.setOutlineProvider(new ViewOutlineProvider() {
+      @Override
+      public void getOutline(View view, Outline outline) {
+        outline.setRoundRect(0, 0, view.getWidth(), view.getHeight() + (int) topRadius,
+                topRadius);
+      }
+    });
+    miniPlayer.setClipToOutline(true);
+
+    // Remove the pill-border foreground — it would draw rounded corners on all sides
+    miniPlayer.setForeground(null);
+
+    // Blur view follows the same clip
+    if (miniBlurBehind != null) {
+      miniBlurBehind.setOutlineProvider(miniPlayer.getOutlineProvider());
+      miniBlurBehind.setClipToOutline(true);
+    }
+  }
+
+  /**
+   * Floating: restore the original pill appearance (foreground drawable + default outline).
+   */
+  private void applyFloatingShape() {
+    miniPlayer.setForeground(
+            androidx.core.content.ContextCompat.getDrawable(activity, R.drawable.glass_pill_outline));
+    miniPlayer.setForegroundGravity(android.view.Gravity.FILL);
+
+    miniPlayer.setBackground(null);
+
+    float density = activity.getResources().getDisplayMetrics().density;
+    float radius = 28 * density; // matches glass_pill_outline's corner radius
+
+    ViewOutlineProvider pillOutline = new ViewOutlineProvider() {
+      @Override
+      public void getOutline(View view, Outline outline) {
+        outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
+      }
+    };
+
+    miniPlayer.setOutlineProvider(pillOutline);
+    miniPlayer.setClipToOutline(true);
+
+    if (miniBlurBehind != null) {
+      miniBlurBehind.setOutlineProvider(pillOutline);
+      miniBlurBehind.setClipToOutline(true);
+    }
+  }
+
+  /**
+   * Returns the system navigation bar height in pixels, or 0 if gesture nav is active.
+   */
+  private int getNavBarHeight() {
+    int resourceId = activity.getResources()
+            .getIdentifier("navigation_bar_height", "dimen", "android");
+    return resourceId > 0 ? activity.getResources().getDimensionPixelSize(resourceId) : 0;
   }
 
   private void attachPlayerListener() {
@@ -296,10 +388,12 @@ public class MiniPlayerManager {
     miniTitle.setText(title != null ? title : "Unknown");
     miniArtist.setText(artist != null ? artist : "Unknown");
 
+    android.graphics.Bitmap cachedArt = me.ash.resonance.util.ArtworkCache.getInstance().getBitmap(item.mediaMetadata.artworkUri);
+
     Glide.with(activity)
-            .load(item.mediaMetadata.artworkUri)
+            .load(item.mediaMetadata.artworkUri != null ? item.mediaMetadata.artworkUri : item)
             .apply(new RequestOptions()
-                    .placeholder(R.drawable.ic_note_outlined)
+                    .placeholder(cachedArt != null ? new android.graphics.drawable.BitmapDrawable(activity.getResources(), cachedArt) : activity.getDrawable(R.drawable.ic_note_outlined))
                     .error(R.drawable.ic_note_outlined)
                     .transform(new RoundedCorners(32)))
             .transition(DrawableTransitionOptions.withCrossFade(300))

@@ -1,350 +1,400 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/gradient_bg"
-    android:orientation="vertical">
+    android:background="@color/bg_primary">
 
-  <!-- ── Top bar ──────────────────────────────────────────────────────────── -->
   <LinearLayout
       android:layout_width="match_parent"
-      android:layout_height="56dp"
-      android:gravity="center_vertical"
-      android:orientation="horizontal"
-      android:paddingStart="4dp"
-      android:paddingEnd="16dp">
+      android:layout_height="match_parent"
+      android:orientation="vertical">
 
-    <ImageButton
-        android:id="@+id/btnSettingsBack"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/ic_chevron_left"
-        app:tint="@color/text_primary" />
-
-    <TextView
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="Settings"
-        android:textColor="@color/text_primary"
-        android:textSize="20sp"
-        android:textStyle="bold" />
-
-  </LinearLayout>
-
-  <!-- ── Scrollable body ──────────────────────────────────────────────────── -->
-  <ScrollView
-      android:layout_width="match_parent"
-      android:layout_height="0dp"
-      android:layout_weight="1"
-      android:clipToPadding="false"
-      android:paddingBottom="32dp">
-
+    <!-- ── Top bar ──────────────────────────────────────────────────────────── -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="16dp"
-        android:paddingTop="8dp"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="4dp"
         android:paddingEnd="16dp">
 
-      <!-- ── Section label ─────────────────────────────────────────────────── -->
+      <ImageButton
+          android:id="@+id/btnSettingsBack"
+          android:layout_width="48dp"
+          android:layout_height="48dp"
+          android:background="?attr/selectableItemBackgroundBorderless"
+          android:src="@drawable/ic_chevron_left"
+          app:tint="@color/text_primary" />
+
       <TextView
-          android:layout_width="match_parent"
+          android:layout_width="0dp"
           android:layout_height="wrap_content"
-          android:layout_marginBottom="10dp"
-          android:letterSpacing="0.12"
-          android:text="LIBRARY"
-          android:textAllCaps="true"
-          android:textColor="@color/accent"
-          android:textSize="11sp"
+          android:layout_weight="1"
+          android:text="Settings"
+          android:textColor="@color/text_primary"
+          android:textSize="20sp"
           android:textStyle="bold" />
 
-      <!-- ── OuterTune import card ─────────────────────────────────────────── -->
+    </LinearLayout>
+
+    <!-- ── Scrollable body ──────────────────────────────────────────────────── -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="96dp">
+
       <LinearLayout
-          android:id="@+id/cardImport"
           android:layout_width="match_parent"
           android:layout_height="wrap_content"
-          android:background="@drawable/glass_pill"
-          android:elevation="4dp"
           android:orientation="vertical"
-          android:padding="20dp">
+          android:paddingStart="16dp"
+          android:paddingTop="8dp"
+          android:paddingEnd="16dp">
 
-        <!-- Header row: icon + title + import button -->
+        <!-- ── Section label ─────────────────────────────────────────────────── -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:letterSpacing="0.12"
+            android:text="LIBRARY"
+            android:textAllCaps="true"
+            android:textColor="@color/accent"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <!-- ── OuterTune import card ─────────────────────────────────────────── -->
+        <LinearLayout
+            android:id="@+id/cardImport"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/glass_pill"
+            android:elevation="4dp"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+          <!-- Header row: icon + title + import button -->
+          <LinearLayout
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical"
+              android:orientation="horizontal">
+
+            <!-- OuterTune-ish icon (music note works) -->
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/music_note_24px"
+                app:tint="@color/accent" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+              <TextView
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="Import from OuterTune"
+                  android:textColor="@color/text_primary"
+                  android:textSize="15sp"
+                  android:textStyle="bold" />
+
+              <TextView
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="2dp"
+                  android:text="Scans your device for exported songs and fetches their metadata from YouTube"
+                  android:textColor="@color/text_secondary"
+                  android:textSize="12sp" />
+
+            </LinearLayout>
+
+          </LinearLayout>
+
+          <!-- Status text -->
+          <TextView
+              android:id="@+id/tvImportStatus"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="14dp"
+              android:text="Tap Import to scan your device for songs exported from OuterTune."
+              android:textColor="@color/text_muted"
+              android:textSize="12sp" />
+
+          <!-- Progress bar (hidden until import starts) -->
+          <ProgressBar
+              android:id="@+id/pbImport"
+              style="?android:attr/progressBarStyleHorizontal"
+              android:layout_width="match_parent"
+              android:layout_height="6dp"
+              android:layout_marginTop="12dp"
+              android:indeterminate="false"
+              android:max="100"
+              android:progress="0"
+              android:progressBackgroundTint="@color/border"
+              android:progressTint="@color/accent"
+              android:visibility="gone" />
+
+          <!-- x / total label -->
+          <TextView
+              android:id="@+id/tvImportProgress"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="4dp"
+              android:gravity="end"
+              android:textColor="@color/text_muted"
+              android:textSize="11sp"
+              android:visibility="gone" />
+
+          <!-- Import button -->
+          <TextView
+              android:id="@+id/btnImportOuterTune"
+              android:layout_width="match_parent"
+              android:layout_height="44dp"
+              android:layout_marginTop="16dp"
+              android:background="@drawable/btn_primary_bg"
+              android:gravity="center"
+              android:text="Import"
+              android:textColor="@color/text_primary"
+              android:textSize="14sp"
+              android:textStyle="bold" />
+
+          <!-- Results list (hidden until complete) -->
+          <androidx.recyclerview.widget.RecyclerView
+              android:id="@+id/rvImportResults"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="16dp"
+              android:nestedScrollingEnabled="false"
+              android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- ── Section label ─────────────────────────────────────────────────── -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:layout_marginBottom="10dp"
+            android:letterSpacing="0.12"
+            android:text="REMOTE CONTROL"
+            android:textAllCaps="true"
+            android:textColor="@color/accent"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <!-- ── Remote Control card ───────────────────────────────────────────────── -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@drawable/glass_pill"
+            android:elevation="4dp"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-          <!-- OuterTune-ish icon (music note works) -->
-          <ImageView
-              android:layout_width="36dp"
-              android:layout_height="36dp"
-              android:src="@drawable/music_note_24px"
-              app:tint="@color/accent" />
+            android:orientation="horizontal"
+            android:padding="20dp">
 
           <LinearLayout
               android:layout_width="0dp"
               android:layout_height="wrap_content"
-              android:layout_marginStart="14dp"
               android:layout_weight="1"
               android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Import from OuterTune"
+                android:text="Web Remote Control"
                 android:textColor="@color/text_primary"
                 android:textSize="15sp"
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/tvRemoteStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="Scans your device for exported songs and fetches their metadata from YouTube"
-                android:textColor="@color/text_secondary"
+                android:text="Not running"
+                android:textColor="@color/text_muted"
                 android:textSize="12sp" />
 
           </LinearLayout>
 
+          <androidx.appcompat.widget.SwitchCompat
+              android:id="@+id/switchRemoteControl"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:thumbTint="@color/accent"
+              app:trackTint="@color/border" />
+
         </LinearLayout>
 
-        <!-- Status text -->
-        <TextView
-            android:id="@+id/tvImportStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="Tap Import to scan your device for songs exported from OuterTune."
-            android:textColor="@color/text_muted"
-            android:textSize="12sp" />
 
-        <!-- Progress bar (hidden until import starts) -->
-        <ProgressBar
-            android:id="@+id/pbImport"
-            style="?android:attr/progressBarStyleHorizontal"
+        <!-- Divider -->
+        <View
             android:layout_width="match_parent"
-            android:layout_height="6dp"
-            android:layout_marginTop="12dp"
-            android:indeterminate="false"
-            android:max="100"
-            android:progress="0"
-            android:progressBackgroundTint="@color/border"
-            android:progressTint="@color/accent"
-            android:visibility="gone" />
-
-        <!-- x / total label -->
-        <TextView
-            android:id="@+id/tvImportProgress"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:gravity="end"
-            android:textColor="@color/text_muted"
-            android:textSize="11sp"
-            android:visibility="gone" />
-
-        <!-- Import button -->
-        <TextView
-            android:id="@+id/btnImportOuterTune"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="1dp"
             android:layout_marginTop="16dp"
-            android:background="@drawable/btn_primary_bg"
-            android:gravity="center"
-            android:text="Import"
-            android:textColor="@color/text_primary"
-            android:textSize="14sp"
+            android:layout_marginBottom="16dp"
+            android:background="@color/divider" />
+
+        <!-- ── Section label ─────────────────────────────────────────────────── -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:letterSpacing="0.12"
+            android:text="PLAYBACK"
+            android:textAllCaps="true"
+            android:textColor="@color/accent"
+            android:textSize="11sp"
             android:textStyle="bold" />
 
-        <!-- Results list (hidden until complete) -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvImportResults"
+        <!-- Crossfade row -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@drawable/glass_pill"
+            android:elevation="4dp"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+          <LinearLayout
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="center_vertical"
+              android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+              <TextView
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="Crossfade"
+                  android:textColor="@color/text_primary"
+                  android:textSize="15sp"
+                  android:textStyle="bold" />
+
+              <TextView
+                  android:id="@+id/tvCrossfadeHint"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="2dp"
+                  android:text="Off"
+                  android:textColor="@color/text_muted"
+                  android:textSize="12sp" />
+
+            </LinearLayout>
+
+          </LinearLayout>
+
+          <SeekBar
+              android:id="@+id/sbCrossfade"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="16dp"
+              android:max="15"
+              android:progress="0"
+              android:progressTint="@color/accent"
+              android:thumbTint="@color/accent" />
+
+        </LinearLayout>
+
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
             android:layout_marginTop="16dp"
-            android:nestedScrollingEnabled="false"
-            android:visibility="gone" />
+            android:layout_marginBottom="16dp"
+            android:background="@color/divider" />
 
-      </LinearLayout>
-
-      <!-- ── Section label ─────────────────────────────────────────────────── -->
-      <TextView
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:layout_marginTop="28dp"
-          android:layout_marginBottom="10dp"
-          android:letterSpacing="0.12"
-          android:text="APPEARANCE"
-          android:textAllCaps="true"
-          android:textColor="@color/accent"
-          android:textSize="11sp"
-          android:textStyle="bold" />
-
-      <!-- ── Glass style card ───────────────────────────────────────────────── -->
-      <LinearLayout
-          android:id="@+id/cardGlassStyle"
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:background="@drawable/glass_pill"
-          android:elevation="4dp"
-          android:gravity="center_vertical"
-          android:orientation="horizontal"
-          android:padding="20dp">
-
+        <!-- Position row -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-          <TextView
+          <LinearLayout
+              android:layout_width="0dp"
+              android:layout_height="wrap_content"
+              android:layout_weight="1"
+              android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Player Position"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvPositionHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Floating"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp" />
+
+          </LinearLayout>
+
+          <RadioGroup
+              android:id="@+id/togglePlayerPosition"
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
-              android:text="Mini Player Style"
-              android:textColor="@color/text_primary"
-              android:textSize="15sp"
-              android:textStyle="bold" />
+              android:background="@drawable/toggle_btn_unselected"
+              android:orientation="horizontal"
+              android:padding="3dp">
 
-          <TextView
-              android:id="@+id/tvGlassStyleHint"
-              android:layout_width="wrap_content"
-              android:layout_height="wrap_content"
-              android:layout_marginTop="2dp"
-              android:text="Frosted glass"
-              android:textColor="@color/text_muted"
-              android:textSize="12sp" />
+            <RadioButton
+                android:id="@+id/btnPositionFloating"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/toggle_btn_selector"
+                android:button="@null"
+                android:fontFamily="@font/jetbrains"
+                android:gravity="center"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="Float"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+
+            <RadioButton
+                android:id="@+id/btnPositionDocked"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:background="@drawable/toggle_btn_selector"
+                android:button="@null"
+                android:fontFamily="@font/jetbrains"
+                android:gravity="center"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="Docked"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+
+          </RadioGroup>
 
         </LinearLayout>
 
-        <!-- Toggle chip group -->
-        <!-- Replace the MaterialButtonToggleGroup and its children with this -->
-        <RadioGroup
-            android:id="@+id/toggleGlassStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/toggle_btn_unselected"
-            android:orientation="horizontal"
-            android:padding="3dp">
-
-          <RadioButton
-              android:id="@+id/btnStyleFrosted"
-              android:layout_width="wrap_content"
-              android:layout_height="32dp"
-              android:background="@drawable/toggle_btn_selector"
-              android:button="@null"
-              android:fontFamily="@font/jetbrains"
-              android:gravity="center"
-              android:paddingStart="14dp"
-              android:paddingEnd="14dp"
-              android:text="Frosted"
-              android:textColor="@color/text_primary"
-              android:textSize="12sp" />
-
-          <RadioButton
-              android:id="@+id/btnStyleLiquid"
-              android:layout_width="wrap_content"
-              android:layout_height="32dp"
-              android:background="@drawable/toggle_btn_selector"
-              android:button="@null"
-              android:fontFamily="@font/jetbrains"
-              android:gravity="center"
-              android:paddingStart="14dp"
-              android:paddingEnd="14dp"
-              android:text="Liquid"
-              android:textColor="@color/text_primary"
-              android:textSize="12sp" />
-
-        </RadioGroup>
-
 
       </LinearLayout>
-      <!-- Divider -->
-      <View
-          android:layout_width="match_parent"
-          android:layout_height="1dp"
-          android:layout_marginTop="16dp"
-          android:layout_marginBottom="16dp"
-          android:background="@color/divider" />
+    </ScrollView>
 
-      <!-- Position row -->
-      <LinearLayout
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:gravity="center_vertical"
-          android:orientation="horizontal">
+  </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+  <include layout="@layout/mini_player" />
 
-          <TextView
-              android:layout_width="wrap_content"
-              android:layout_height="wrap_content"
-              android:text="Player Position"
-              android:textColor="@color/text_primary"
-              android:textSize="15sp"
-              android:textStyle="bold" />
-
-          <TextView
-              android:id="@+id/tvPositionHint"
-              android:layout_width="wrap_content"
-              android:layout_height="wrap_content"
-              android:layout_marginTop="2dp"
-              android:text="Floating"
-              android:textColor="@color/text_muted"
-              android:textSize="12sp" />
-
-        </LinearLayout>
-
-        <RadioGroup
-            android:id="@+id/togglePlayerPosition"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/toggle_btn_unselected"
-            android:orientation="horizontal"
-            android:padding="3dp">
-
-          <RadioButton
-              android:id="@+id/btnPositionFloating"
-              android:layout_width="wrap_content"
-              android:layout_height="32dp"
-              android:background="@drawable/toggle_btn_selector"
-              android:button="@null"
-              android:fontFamily="@font/jetbrains"
-              android:gravity="center"
-              android:paddingStart="14dp"
-              android:paddingEnd="14dp"
-              android:text="Float"
-              android:textColor="@color/text_primary"
-              android:textSize="12sp" />
-
-          <RadioButton
-              android:id="@+id/btnPositionDocked"
-              android:layout_width="wrap_content"
-              android:layout_height="32dp"
-              android:background="@drawable/toggle_btn_selector"
-              android:button="@null"
-              android:fontFamily="@font/jetbrains"
-              android:gravity="center"
-              android:paddingStart="14dp"
-              android:paddingEnd="14dp"
-              android:text="Docked"
-              android:textColor="@color/text_primary"
-              android:textSize="12sp" />
-
-        </RadioGroup>
-
-      </LinearLayout>
-
-
-    </LinearLayout>
-  </ScrollView>
-
-</LinearLayout>
+</FrameLayout>

@@ -59,45 +59,55 @@ public class PlaylistsAdapter extends RecyclerView.Adapter<PlaylistsAdapter.VH> 
 
   @SuppressLint("NotifyDataSetChanged")
   public void refresh() {
-    names.clear();
-    names.add(LIKED);
-    names.add(PlaylistManager.SMART_MOST_PLAYED);
-    names.add(PlaylistManager.SMART_RECENTLY_PLAYED);
-    names.add(PlaylistManager.SMART_RECENTLY_ADDED);
-    names.add(PlaylistManager.SMART_DOWNLOADS);
+    new Thread(() -> {
+      List<String> newNames = new ArrayList<>();
+      newNames.add(LIKED);
+      newNames.add(PlaylistManager.SMART_MOST_PLAYED);
+      newNames.add(PlaylistManager.SMART_RECENTLY_PLAYED);
+      newNames.add(PlaylistManager.SMART_RECENTLY_ADDED);
+      newNames.add(PlaylistManager.SMART_DOWNLOADS);
 
-    playlistCounts.clear();
-    playlistFirstSongs.clear();
+      Map<String, Integer> newCounts = new HashMap<>();
+      Map<String, Song> newFirstSongs = new HashMap<>();
 
-    // Fetch the playlists map exactly once
-    Map<String, List<String>> allPlaylists = PlaylistManager.get(ctx).getAllPlaylists();
-    names.addAll(allPlaylists.keySet());
+      // Fetch the playlists map exactly once
+      Map<String, List<String>> allPlaylists = PlaylistManager.get(ctx).getAllPlaylists();
+      newNames.addAll(allPlaylists.keySet());
 
-    // Cache liked count
-    int likedCount = PlaylistManager.get(ctx).getFavouriteIds().size();
-    playlistCounts.put(LIKED, likedCount);
+      // Cache liked count
+      int likedCount = PlaylistManager.get(ctx).getFavouriteIds().size();
+      newCounts.put(LIKED, likedCount);
 
-    // Get all songs once for quick artwork/existence lookup
-    List<Song> allSongs = MusicLoader.loadSongs(ctx);
-    Map<String, Song> songMap = new HashMap<>();
-    for (Song s : allSongs) {
-      songMap.put(String.valueOf(s.id), s);
-    }
+      // Get all songs once for quick artwork/existence lookup
+      List<Song> allSongs = MusicLoader.loadSongs(ctx);
+      Map<String, Song> songMap = new HashMap<>();
+      for (Song s : allSongs) {
+        songMap.put(String.valueOf(s.id), s);
+      }
 
-    // Cache song counts and first-item references for named playlists
-    for (Map.Entry<String, List<String>> entry : allPlaylists.entrySet()) {
-      String name = entry.getKey();
-      List<String> ids = entry.getValue();
-      playlistCounts.put(name, ids.size());
-      if (!ids.isEmpty()) {
-        Song firstSong = songMap.get(ids.get(0));
-        if (firstSong != null) {
-          playlistFirstSongs.put(name, firstSong);
+      // Cache song counts and first-item references for named playlists
+      for (Map.Entry<String, List<String>> entry : allPlaylists.entrySet()) {
+        String name = entry.getKey();
+        List<String> ids = entry.getValue();
+        newCounts.put(name, ids.size());
+        if (!ids.isEmpty()) {
+          Song firstSong = songMap.get(ids.get(0));
+          if (firstSong != null) {
+            newFirstSongs.put(name, firstSong);
+          }
         }
       }
-    }
 
-    notifyDataSetChanged();
+      new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+        names.clear();
+        names.addAll(newNames);
+        playlistCounts.clear();
+        playlistCounts.putAll(newCounts);
+        playlistFirstSongs.clear();
+        playlistFirstSongs.putAll(newFirstSongs);
+        notifyDataSetChanged();
+      });
+    }).start();
   }
 
   @Override
@@ -166,7 +176,7 @@ public class PlaylistsAdapter extends RecyclerView.Adapter<PlaylistsAdapter.VH> 
       Integer countObj = playlistCounts.get(name);
       int count = countObj != null ? countObj : 0;
       h.tvCount.setText(count + (count == 1 ? " song" : " songs"));
-      
+
       Song firstSong = playlistFirstSongs.get(name);
       loadMosaicArt(h.ivIcon, firstSong, name);
     }
@@ -189,41 +199,12 @@ public class PlaylistsAdapter extends RecyclerView.Adapter<PlaylistsAdapter.VH> 
       return;
     }
 
-    view.setTag(playlistName);
-
-    if (song.albumArtUri != null) {
-      Glide.with(view)
-              .load(song.albumArtUri)
-              .placeholder(R.drawable.ic_music_note)
-              .error(R.drawable.ic_music_note)
-              .centerCrop()
-              .into(view);
-      return;
-    }
-
-    // Fallback: try embedded art via MediaMetadataRetriever (local MediaStore songs without albumArtUri)
-    new Thread(() -> {
-      try {
-        MediaMetadataRetriever mmr = new MediaMetadataRetriever();
-        mmr.setDataSource(ctx, song.uri);
-        byte[] art = mmr.getEmbeddedPicture();
-        mmr.release();
-        if (art == null) {
-          ((android.app.Activity) ctx).runOnUiThread(() ->
-                  view.setImageResource(R.drawable.ic_music_note));
-          return;
-        }
-        Bitmap bmp = BitmapFactory.decodeByteArray(art, 0, art.length);
-        ((android.app.Activity) ctx).runOnUiThread(() -> {
-          if (playlistName.equals(view.getTag())) {
-            Glide.with(view).load(bmp).centerCrop().into(view);
-          }
-        });
-      } catch (Exception e) {
-        ((android.app.Activity) ctx).runOnUiThread(() ->
-                view.setImageResource(R.drawable.ic_music_note));
-      }
-    }).start();
+    Glide.with(view)
+            .load(song.albumArtUri != null ? song.albumArtUri : song)
+            .placeholder(R.drawable.ic_music_note)
+            .error(R.drawable.ic_music_note)
+            .centerCrop()
+            .into(view);
   }
 
   @Override

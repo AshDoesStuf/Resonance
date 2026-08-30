@@ -1,6 +1,6 @@
 <resources>
 
-  <style name="Theme.Resonance" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+  <style name="Theme.Resonance" parent="Theme.Material3.DayNight.NoActionBar">
 
     <item name="colorPrimary">@color/bg_primary</item>
     <item name="colorPrimaryVariant">@color/bg_secondary</item>
@@ -14,14 +14,21 @@
     <item name="android:fontFamily">@font/jetbrains</item>
     <item name="fontFamily">@font/jetbrains</item>
 
+
     <item name="android:windowBackground">@drawable/bg_main_gradient</item>
 
-    <item name="android:statusBarColor">@color/bg_primary</item>
+    <item name="android:statusBarColor">@android:color/transparent</item>
     <item name="android:navigationBarColor">@android:color/transparent</item>
+    <item name="android:windowLightStatusBar">false</item>
+    <item name="android:windowLightNavigationBar">false</item>
     <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     <item name="bottomSheetDialogTheme">@style/BottomSheetStyle</item>
 
 
+  </style>
+
+  <style name="TextAppearance.Resonance.Body" parent="TextAppearance.Material3.BodyMedium">
+    <item name="android:fontFamily">@font/jetbrains</item>
   </style>
 
   <style name="Theme.Resonance.Translucent" parent="Theme.Resonance">
@@ -31,11 +38,16 @@
     <item name="android:backgroundDimAmount">0.5</item>
   </style>
 
-  <style name="BottomSheetStyle" parent="Theme.MaterialComponents.BottomSheetDialog">
+  <style name="BottomSheetStyle" parent="Theme.Material3.DayNight.BottomSheetDialog">
     <item name="bottomSheetStyle">@style/TransparentBottomSheet</item>
+    <item name="android:navigationBarColor">@android:color/transparent</item>
+    <item name="android:navigationBarDividerColor">@android:color/transparent</item>
+    <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    <item name="android:windowIsFloating">false</item>
+    <item name="enableEdgeToEdge">true</item>
   </style>
 
-  <style name="TransparentBottomSheet" parent="Widget.MaterialComponents.BottomSheet.Modal">
+  <style name="TransparentBottomSheet" parent="Widget.Material3.BottomSheet.Modal">
     <item name="android:background">@android:color/transparent</item>
     <item name="backgroundTint">@android:color/transparent</item>
   </style>

@@ -21,11 +21,13 @@ public class StatSongAdapter extends RecyclerView.Adapter<StatSongAdapter.VH> {
 
   private final List<String> ids;
   private final Map<String, Song> songMap;
-  private final boolean showPlayCount; // true = "5 plays", false = "2h ago"
+  private final Map<String, Integer> playCounts;
+  private final boolean showPlayCount; // true = "5 plays", false = duration
 
-  public StatSongAdapter(List<String> ids, Map<String, Song> songMap, boolean showPlayCount) {
+  public StatSongAdapter(List<String> ids, Map<String, Song> songMap, Map<String, Integer> playCounts, boolean showPlayCount) {
     this.ids = ids;
     this.songMap = songMap;
+    this.playCounts = playCounts;
     this.showPlayCount = showPlayCount;
   }
 
@@ -52,9 +54,9 @@ public class StatSongAdapter extends RecyclerView.Adapter<StatSongAdapter.VH> {
     h.title.setText(song.title);
     h.artist.setText(song.artist);
 
-    if (showPlayCount) {
-      // Position as rank (1-based)
-      h.meta.setText("#" + (position + 1));
+    if (showPlayCount && playCounts != null) {
+      Integer count = playCounts.get(id);
+      h.meta.setText((count != null ? count : 0) + " plays");
     } else {
       h.meta.setText(song.duration);
     }

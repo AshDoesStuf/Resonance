@@ -1,5 +1,7 @@
 package me.ash.resonance.queue;
 
+import android.content.Context;
+
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.session.MediaController;
@@ -8,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import me.ash.resonance.ResonanceApp;
 import me.ash.resonance.radio.RadioSession;
 
 /**
@@ -31,7 +34,6 @@ public class QueueManager {
   // ── State ─────────────────────────────────────────────────────────────────
   private boolean shuffleOn = false;
 
-  // Add as a field:
   private SavedQueueState pendingRestore = null;
   private RepeatMode repeat = RepeatMode.OFF;
 
@@ -47,6 +49,12 @@ public class QueueManager {
 
   public static MediaItem buildPlayableItem(MediaItem saved) {
     return saved;
+  }
+
+  public void getControllerAsync(Context context, ResonanceApp.ControllerListener listener) {
+    if (context.getApplicationContext() instanceof ResonanceApp) {
+      ((ResonanceApp) context.getApplicationContext()).getSharedController(listener);
+    }
   }
 
   public RadioSession getActiveRadio() {
@@ -86,6 +94,28 @@ public class QueueManager {
     originalItems.addAll(items);
   }
 
+  /**
+   * Sets the queue to the given list of items, respecting the current shuffle state.
+   * If shuffle is ON, the starting item is placed at index 0 and the rest are shuffled.
+   */
+  public void setQueue(MediaController controller, List<MediaItem> items, int startIndex) {
+    setOriginalItems(items);
+    setIsSmallWindow(false);
+
+    if (shuffleOn) {
+      List<MediaItem> shuffled = new ArrayList<>(items);
+      MediaItem startingItem = shuffled.remove(startIndex);
+      Collections.shuffle(shuffled);
+      shuffled.addFirst(startingItem);
+      controller.setMediaItems(shuffled, 0, 0);
+    } else {
+      controller.setMediaItems(items, startIndex, 0);
+    }
+    controller.setShuffleModeEnabled(false); // list order IS the play order now, no double-randomizing
+    controller.prepare();
+    controller.play();
+  }
+
   public void setShuffle(boolean on) {
     shuffleOn = on;
   }
@@ -95,35 +125,9 @@ public class QueueManager {
     return shuffleOn;
   }
 
-  /**
-   * Toggles shuffle. When turning ON the currently playing item stays at
-   * position 0 so playback doesn't jump. When turning OFF the original
-   * order is restored and the same item is seeked to.
-   */
   public void toggleShuffle(MediaController controller) {
     shuffleOn = !shuffleOn;
-    MediaItem current = controller.getCurrentMediaItem();
-
-    if (shuffleOn) {
-      List<MediaItem> shuffled = new ArrayList<>(originalItems);
-      if (current != null) shuffled.removeIf(i -> i.mediaId.equals(current.mediaId));
-      Collections.shuffle(shuffled);
-      if (current != null) shuffled.add(0, current);
-      controller.setMediaItems(shuffled, 0, controller.getCurrentPosition());
-      controller.prepare();
-    } else {
-      int resumeIndex = 0;
-      if (current != null) {
-        for (int i = 0; i < originalItems.size(); i++) {
-          if (originalItems.get(i).mediaId.equals(current.mediaId)) {
-            resumeIndex = i;
-            break;
-          }
-        }
-      }
-      controller.setMediaItems(originalItems, resumeIndex, controller.getCurrentPosition());
-      controller.prepare();
-    }
+    controller.setShuffleModeEnabled(shuffleOn);
   }
 
   // ── Repeat ────────────────────────────────────────────────────────────────
@@ -182,13 +186,19 @@ public class QueueManager {
    */
   public void moveItem(MediaController controller, int fromIndex, int toIndex) {
     controller.moveMediaItem(fromIndex, toIndex);
+    if (!shuffleOn) {
+      MediaItem item = originalItems.remove(fromIndex);
+      originalItems.add(toIndex, item);
+    }
   }
 
   /**
    * Remove an item from the controller's current playlist.
    */
   public void removeItem(MediaController controller, int index) {
+    MediaItem itemToRemove = controller.getMediaItemAt(index);
     controller.removeMediaItem(index);
+    originalItems.removeIf(item -> item.mediaId.equals(itemToRemove.mediaId));
   }
 
   // ── Queue mutation helpers ─────────────────────────────────────────────────
@@ -205,6 +215,13 @@ public class QueueManager {
   public void playNext(MediaController controller, MediaItem item) {
     int insertAt = controller.getCurrentMediaItemIndex() + 1;
     controller.addMediaItem(insertAt, item);
+
+    // Sync with originalItems
+    if (shuffleOn) {
+      originalItems.add(item); // Just append if shuffled
+    } else {
+      originalItems.add(insertAt, item);
+    }
   }
 
   /**
@@ -212,6 +229,7 @@ public class QueueManager {
    */
   public void addToQueue(MediaController controller, MediaItem item) {
     controller.addMediaItem(item);
+    originalItems.add(item);
   }
 
   public void startTempSession(MediaController controller, List<MediaItem> items) {
@@ -226,24 +244,23 @@ public class QueueManager {
     return isTempSession;
   }
 
+  public boolean isTempSessionActive() {
+    return isTempSession;
+  }
+
   public void endTempSession(Player controller) {
     if (!isTempSession) return;
     isTempSession = false;
     controller.clearMediaItems();
   }
 
+  public void stopTempSession() {
+    isTempSession = false;
+  }
+
   public enum RepeatMode {OFF, ONE, ALL}
 
-  public static class SavedQueueState {
-    public final List<MediaItem> items;
-    public final int index;
-    public final long positionMs;
-
-    public SavedQueueState(List<MediaItem> items, int index, long positionMs) {
-      this.items = items;
-      this.index = index;
-      this.positionMs = positionMs;
-    }
+  public record SavedQueueState(List<MediaItem> items, int index, long positionMs) {
   }
 
   // ── Thread-safe singleton (initialization-on-demand holder) ──────────────

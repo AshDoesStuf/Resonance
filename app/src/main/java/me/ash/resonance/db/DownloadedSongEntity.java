@@ -13,6 +13,8 @@ public class DownloadedSongEntity {
   public String videoId;      // YT video ID  e.g. "dQw4w9WgXcQ"
   public String title;
   public String artist;
+  public String album;
   public String duration;     // "m:ss"
+  public long durationSeconds;
   public String thumbnailUrl;
 }

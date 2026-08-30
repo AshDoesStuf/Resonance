@@ -11,10 +11,14 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.OptIn;
+import androidx.media3.common.util.UnstableApi;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
+
+import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -175,6 +179,7 @@ public class SuggestSongsBottomSheet extends BottomSheetDialogFragment {
 
   // ── Loading ───────────────────────────────────────────────────────────────
 
+  @OptIn(markerClass = UnstableApi.class)
   private void resolveAndSuggest() {
     ExecutorService pool = Executors.newFixedThreadPool(6);
 
@@ -191,7 +196,7 @@ public class SuggestSongsBottomSheet extends BottomSheetDialogFragment {
         String query = ((song.title != null ? song.title : "") + " " +
                 (song.artist != null ? song.artist : "")).trim();
 
-        YtMusicService.get().search(query, new YtMusicService.SearchCallback() {
+        YtMusicService.get().search(query, YoutubeSearchQueryHandlerFactory.MUSIC_SONGS, new YtMusicService.SearchCallback() {
           @Override
           public void onResults(List<YtTrack> tracks) {
             if (!tracks.isEmpty()) {
@@ -319,56 +324,70 @@ public class SuggestSongsBottomSheet extends BottomSheetDialogFragment {
     PlaylistManager pm = PlaylistManager.get(requireContext());
     YtDownloadManager dlm = YtDownloadManager.get(requireContext());
 
-    // Count how many are genuinely new downloads (not already on device)
-    int toDownload = 0;
-    for (YtTrack track : selected) {
-      pm.addToPlaylist(playlistName, track.videoId);
-      if (!dlm.isDownloaded(track.videoId)) toDownload++;
-    }
-
-    // Invalidate cache — the added songs must not appear on next open
-    invalidateCache(playlistName);
-
-    // Notify activity to refresh its list
-    if (getActivity() instanceof OnSuggestionsAddedListener) {
-      ((OnSuggestionsAddedListener) getActivity()).onSuggestionsAdded(selected);
-    }
-
-    // Kick off background downloads for tracks not already on device
-    if (toDownload > 0) {
-      Toast.makeText(requireContext(),
-              "Downloading " + toDownload + " song" + (toDownload == 1 ? "" : "s") + "…",
-              Toast.LENGTH_SHORT).show();
-
+    new Thread(() -> {
+      List<YtTrack> toDownload = new ArrayList<>();
       for (YtTrack track : selected) {
-        if (dlm.isDownloaded(track.videoId)) continue;
+        // Save metadata to RemoteSongEntity so they appear in playlist UI immediately
+        me.ash.resonance.db.RemoteSongEntity re = new me.ash.resonance.db.RemoteSongEntity();
+        re.videoId = track.videoId;
+        re.title = track.title;
+        re.artist = track.artist;
+        re.album = track.albumName != null ? track.albumName : "YouTube Music";
+        re.duration = track.formattedDuration();
+        re.durationSeconds = track.durationSeconds;
+        re.thumbnailUrl = track.thumbnailUrl;
+        me.ash.resonance.db.AppDatabase.get(requireContext()).remoteSongDao().insert(re);
 
-        dlm.download(track, new YtDownloadManager.DownloadCallback() {
-          @Override
-          public void onProgress(String message) { /* silent background */ }
-
-          @Override
-          public void onSuccess(String title) {
-            // YtDownloadManager already broadcasts ACTION_LIBRARY_CHANGED,
-            // which PlaylistDetailActivity listens to for the Downloads playlist.
-            // Nothing extra needed here.
-          }
-
-          @Override
-          public void onError(String reason) {
-            // Post a toast so the user knows if a specific track failed
-            if (getActivity() != null) {
-              getActivity().runOnUiThread(() ->
-                      Toast.makeText(requireContext(),
-                              "Download failed: " + track.title,
-                              Toast.LENGTH_SHORT).show());
-            }
-          }
-        });
+        pm.addToPlaylist(playlistName, track.videoId);
+        if (!dlm.isDownloaded(track.videoId)) {
+          toDownload.add(track);
+        }
       }
-    }
 
-    dismiss();
+      // Invalidate cache — the added songs must not appear on next open
+      invalidateCache(playlistName);
+
+      if (getActivity() == null) return;
+      getActivity().runOnUiThread(() -> {
+        // Notify activity to refresh its list
+        if (getActivity() instanceof OnSuggestionsAddedListener) {
+          ((OnSuggestionsAddedListener) getActivity()).onSuggestionsAdded(selected);
+        }
+
+        // Kick off background downloads for tracks not already on device
+        if (!toDownload.isEmpty()) {
+          Toast.makeText(requireContext(),
+                  "Downloading " + toDownload.size() + " song" + (toDownload.size() == 1 ? "" : "s") + "…",
+                  Toast.LENGTH_SHORT).show();
+
+          for (YtTrack track : toDownload) {
+            dlm.download(track, new YtDownloadManager.DownloadCallback() {
+              @Override
+              public void onProgress(String message) { /* silent background */ }
+
+              @Override
+              public void onSuccess(String title) {
+                // YtDownloadManager already broadcasts ACTION_LIBRARY_CHANGED,
+                // which PlaylistDetailActivity listens to for the Downloads playlist.
+              }
+
+              @Override
+              public void onError(String reason) {
+                // Post a toast so the user knows if a specific track failed
+                if (getActivity() != null) {
+                  getActivity().runOnUiThread(() ->
+                          Toast.makeText(requireContext(),
+                                  "Download failed: " + track.title,
+                                  Toast.LENGTH_SHORT).show());
+                }
+              }
+            });
+          }
+        }
+
+        dismiss();
+      });
+    }).start();
   }
 
   // ── Add to playlist + auto-download ──────────────────────────────────────

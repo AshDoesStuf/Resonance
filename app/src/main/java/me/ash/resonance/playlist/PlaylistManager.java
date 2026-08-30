@@ -81,6 +81,12 @@ public class PlaylistManager {
     savePlaylists(all);
   }
 
+  public void saveQueueAsPlaylist(String name, List<String> ids) {
+    Map<String, List<String>> all = getAllPlaylists();
+    all.put(name, new ArrayList<>(ids));
+    savePlaylists(all);
+  }
+
   /**
    * Duplicates a playlist with " (Copy)" appended to the name.
    */

@@ -1,35 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/queueRootLayout"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@drawable/glass_surface"
+    android:layout_height="match_parent"
+    android:background="@color/bg_primary"
     android:orientation="vertical">
-
-  <!-- Drag handle pill -->
-  <View
-      android:layout_width="40dp"
-      android:layout_height="4dp"
-      android:layout_gravity="center_horizontal"
-      android:layout_marginTop="10dp"
-      android:layout_marginBottom="4dp"
-      android:background="@drawable/drag_handle_24px" />
 
   <!-- Header -->
   <LinearLayout
       android:layout_width="match_parent"
-      android:layout_height="52dp"
+      android:layout_height="64dp"
       android:gravity="center_vertical"
       android:orientation="horizontal"
-      android:paddingStart="20dp"
+      android:paddingStart="8dp"
       android:paddingEnd="16dp">
+
+    <ImageView
+        android:id="@+id/btnBack"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="12dp"
+        android:src="@drawable/arrow_back_24px"
+        app:tint="@color/text_primary" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Queue"
         android:textColor="@color/text_primary"
-        android:textSize="18sp"
+        android:textSize="20sp"
         android:textStyle="bold" />
 
     <TextView
@@ -39,7 +40,7 @@
         android:layout_marginStart="8dp"
         android:text=""
         android:textColor="@color/text_muted"
-        android:textSize="13sp" />
+        android:textSize="14sp" />
 
     <View
         android:layout_width="0dp"
@@ -51,10 +52,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:padding="4dp"
+        android:padding="8dp"
         android:text="Clear"
         android:textColor="@color/accent_red"
-        android:textSize="13sp" />
+        android:textSize="14sp" />
 
   </LinearLayout>
 
@@ -65,7 +66,7 @@
       android:orientation="horizontal"
       android:paddingStart="16dp"
       android:paddingEnd="16dp"
-      android:paddingBottom="10dp">
+      android:paddingBottom="12dp">
 
     <!-- Save queue as playlist -->
     <LinearLayout
@@ -79,8 +80,8 @@
         android:padding="8dp">
 
       <ImageView
-          android:layout_width="26dp"
-          android:layout_height="26dp"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
           android:contentDescription="Save as playlist"
           android:src="@drawable/ic_playlist_add"
           app:tint="@color/text_primary" />
@@ -91,7 +92,7 @@
           android:layout_marginTop="4dp"
           android:text="Save"
           android:textColor="@color/text_muted"
-          android:textSize="11sp" />
+          android:textSize="12sp" />
 
     </LinearLayout>
 
@@ -107,8 +108,8 @@
         android:padding="8dp">
 
       <ImageView
-          android:layout_width="26dp"
-          android:layout_height="26dp"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
           android:contentDescription="Append to playlist"
           android:src="@drawable/ic_playlist_play"
           app:tint="@color/text_primary" />
@@ -119,7 +120,7 @@
           android:layout_marginTop="4dp"
           android:text="Append"
           android:textColor="@color/text_muted"
-          android:textSize="11sp" />
+          android:textSize="12sp" />
 
     </LinearLayout>
 
@@ -136,8 +137,8 @@
 
       <ImageView
           android:id="@+id/ivTempSessionIcon"
-          android:layout_width="26dp"
-          android:layout_height="26dp"
+          android:layout_width="28dp"
+          android:layout_height="28dp"
           android:contentDescription="Temp session"
           android:src="@drawable/ic_timer"
           app:tint="@color/text_primary" />
@@ -149,7 +150,7 @@
           android:layout_marginTop="4dp"
           android:text="Temp"
           android:textColor="@color/text_muted"
-          android:textSize="11sp" />
+          android:textSize="12sp" />
 
     </LinearLayout>
 
@@ -161,17 +162,11 @@
       android:layout_height="1dp"
       android:background="@color/divider" />
 
-  <!-- Thin divider -->
-  <View
-      android:layout_width="match_parent"
-      android:layout_height="1dp"
-      android:background="@color/divider" />
-
   <androidx.recyclerview.widget.RecyclerView
       android:id="@+id/rvQueue"
       android:layout_width="match_parent"
-      android:layout_height="420dp"
+      android:layout_height="0dp"
+      android:layout_weight="1"
       android:clipToPadding="false"
       android:paddingBottom="24dp" />
-
 </LinearLayout>

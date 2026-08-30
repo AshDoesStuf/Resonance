@@ -9,22 +9,12 @@
     android:paddingStart="16dp"
     android:paddingEnd="8dp">
 
-  <ImageView
-      android:id="@+id/ivDragHandle"
-      android:layout_width="32dp"
-      android:layout_height="32dp"
-      android:layout_marginEnd="2dp"
-      android:alpha="0.4"
-      android:padding="4dp"
-      android:src="@drawable/drag_handle_24px" />
-
-
   <androidx.cardview.widget.CardView
       android:layout_width="42dp"
       android:layout_height="42dp"
       android:layout_marginStart="2dp"
       android:layout_marginEnd="12dp"
-      app:cardBackgroundColor="@color/bg_secondary"
+      app:cardBackgroundColor="@color/bg_card_elevated"
       app:cardCornerRadius="10dp"
       app:cardElevation="0dp">
 
@@ -33,7 +23,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
-
         android:src="@drawable/ic_note_outlined" />
 
   </androidx.cardview.widget.CardView>
@@ -66,12 +55,15 @@
 
   </LinearLayout>
 
+  <!-- More menu -->
   <ImageButton
-      android:id="@+id/btnRemoveFromPlaylist"
-      android:layout_width="36dp"
-      android:layout_height="36dp"
+      android:id="@+id/ivPlaylistSongOverflow"
+      android:layout_width="48dp"
+      android:layout_height="48dp"
+      android:padding="12dp"
+      android:scaleType="centerInside"
       android:background="?attr/selectableItemBackgroundBorderless"
-      android:src="@drawable/ic_delete"
-      app:tint="@color/accent_red" />
+      android:src="@drawable/more_vert_24px"
+      app:tint="@color/text_muted" />
 
 </LinearLayout>

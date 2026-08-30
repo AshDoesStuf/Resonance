@@ -21,4 +21,10 @@ public interface ImportedSongDao {
 
   @Query("SELECT * FROM imported_songs WHERE videoId = :videoId LIMIT 1")
   ImportedSongEntity getByVideoId(String videoId);
+
+  @Query("SELECT videoId FROM imported_songs WHERE videoId IN (:ids)")
+  List<String> findExistingVideoIds(List<String> ids);
+
+  @Insert(onConflict = OnConflictStrategy.IGNORE)
+  void insertAll(List<ImportedSongEntity> entities);
 }

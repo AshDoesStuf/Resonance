@@ -17,27 +17,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 import me.ash.resonance.MusicLoader;
+import me.ash.resonance.playlist.PlaylistDetailAdapter;
+import me.ash.resonance.yt.YtMusicService;
+import me.ash.resonance.yt.YtTrack;
 import me.ash.resonance.R;
 import me.ash.resonance.song.Song;
 import me.ash.resonance.ui.BaseDetailActivity;
 
 public class AlbumDetailActivity extends BaseDetailActivity {
 
-  public static final String EXTRA_ALBUM_ID = "album_id";
-  public static final String EXTRA_ALBUM_NAME = "album_name";
-  public static final String EXTRA_ALBUM_ARTIST = "album_artist";
+  public static final String EXTRA_BROWSE_ID = "browseId";
+  public static final String EXTRA_TITLE = "title";
+  public static final String EXTRA_THUMB = "thumb";
+  public static final String EXTRA_ARTIST = "artist";
 
-  private long albumId;
-  private String albumName;
-  private String albumArtist;
+  private String browseId;
+  private String title;
+  private String thumb;
+  private String artist;
 
   // ── launch helper ─────────────────────────────
 
-  public static Intent createIntent(Context context, Album album) {
+  public static Intent createIntent(Context context, String browseId, String title, String artist, String thumb) {
     Intent i = new Intent(context, AlbumDetailActivity.class);
-    i.putExtra(EXTRA_ALBUM_ID, album.id);
-    i.putExtra(EXTRA_ALBUM_NAME, album.name);
-    i.putExtra(EXTRA_ALBUM_ARTIST, album.artist);
+    i.putExtra(EXTRA_BROWSE_ID, browseId);
+    i.putExtra(EXTRA_TITLE, title);
+    i.putExtra(EXTRA_ARTIST, artist);
+    i.putExtra(EXTRA_THUMB, thumb);
     return i;
   }
 
@@ -52,11 +58,12 @@ public class AlbumDetailActivity extends BaseDetailActivity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
+    browseId = getIntent().getStringExtra(EXTRA_BROWSE_ID);
+    title = getIntent().getStringExtra(EXTRA_TITLE);
+    artist = getIntent().getStringExtra(EXTRA_ARTIST);
+    thumb = getIntent().getStringExtra(EXTRA_THUMB);
 
-    albumId = getIntent().getLongExtra(EXTRA_ALBUM_ID, -1);
-    albumName = getIntent().getStringExtra(EXTRA_ALBUM_NAME);
-    albumArtist = getIntent().getStringExtra(EXTRA_ALBUM_ARTIST);
+    super.onCreate(savedInstanceState);
   }
 
   // ── header ───────────────────────────────────
@@ -66,56 +73,89 @@ public class AlbumDetailActivity extends BaseDetailActivity {
 
     view.findViewById(R.id.cardDetailAlbumArt).setVisibility(View.VISIBLE);
     view.findViewById(R.id.tvDetailArtist).setVisibility(View.VISIBLE);
-    view.findViewById(R.id.btnSortPlaylist).setVisibility(View.VISIBLE);
     view.findViewById(R.id.btnShufflePlaylist).setVisibility(View.VISIBLE);
+    view.findViewById(R.id.btnMore).setVisibility(View.GONE);
 
-    ((TextView) view.findViewById(R.id.tvDetailTitle)).setText(albumName);
-    ((TextView) view.findViewById(R.id.tvDetailArtist)).setText(albumArtist);
+    ((TextView) view.findViewById(R.id.tvDetailTitle)).setText(title);
+    ((TextView) view.findViewById(R.id.tvDetailArtist)).setText(artist);
 
     ImageView ivArt = view.findViewById(R.id.ivDetailAlbumArt);
 
-    Uri artUri = Uri.parse(
-            "content://media/external/audio/albumart/" + albumId
-    );
-
     Glide.with(this)
-            .load(artUri)
+            .load(thumb)
             .placeholder(R.drawable.ic_note_outlined)
             .error(R.drawable.ic_note_outlined)
             .transition(DrawableTransitionOptions.withCrossFade())
             .into(ivArt);
   }
 
-  // ── data ─────────────────────────────────────
-
   @Override
   protected List<Song> loadSongs() {
-
-    List<Song> result = new ArrayList<>();
-
-    for (Song s : MusicLoader.loadSongs(this)) {
-      if (s.albumArtUri != null &&
-              s.albumArtUri.toString().endsWith("/" + albumId)) {
-        result.add(s);
-      }
-    }
-
-    result.sort((a, b) ->
-            a.title.compareToIgnoreCase(b.title)
-    );
-
-    return result;
+    // We override onSongsLoaded to fetch from network instead of using this blocking method.
+    return new ArrayList<>();
   }
-
-  // ── extra UI update ─────────────────────────
 
   @Override
   protected void onSongsLoaded(View root, RecyclerView rv, List<Song> songs) {
-    ((TextView) root.findViewById(R.id.tvDetailCount))
-            .setText(
-                    songs.size() + (songs.size() == 1 ? " song" : " songs")
-            );
+    if (browseId == null) {
+      // Local library mode
+      new Thread(() -> {
+        List<Song> localSongs = new ArrayList<>();
+        // For local albums, we filter by name/artist since we don't have the ID easily in this new Intent
+        for (Song s : MusicLoader.loadSongs(this)) {
+          if (title != null && title.equalsIgnoreCase(s.album) &&
+                  (artist == null || artist.equalsIgnoreCase(s.artist))) {
+            localSongs.add(s);
+          }
+        }
+        localSongs.sort((a, b) -> a.title.compareToIgnoreCase(b.title));
 
-    super.onSongsLoaded(root, rv, songs);
+        runOnUiThread(() -> {
+          this.currentSongs = localSongs;
+          PlaylistDetailAdapter adapter = new PlaylistDetailAdapter(localSongs, s -> playSong(localSongs, s), this::onRemoveSong);
+          adapter.setPlaylistName(title);
+          adapter.setController(controller);
+          rv.setAdapter(adapter);
+
+          ((TextView) root.findViewById(R.id.tvDetailCount))
+                  .setText(localSongs.size() + (localSongs.size() == 1 ? " song" : " songs"));
+        });
+      }).start();
+      return;
+    }
+
+    // YT Music mode
+    YtMusicService.get().fetchAlbumTracks(browseId, new YtMusicService.SearchCallback() {
+      @Override
+      public void onResults(List<YtTrack> tracks) {
+        List<Song> songList = new ArrayList<>();
+        for (YtTrack t : tracks) {
+          songList.add(new Song(
+                  t.videoId,
+                  t.title,
+                  t.artist,
+                  title,
+                  t.formattedDuration(),
+                  Uri.parse("ytmusic://" + t.videoId),
+                  t.thumbnailUrl != null ? Uri.parse(t.thumbnailUrl) : null
+          ));
+        }
+        runOnUiThread(() -> {
+          AlbumDetailActivity.this.currentSongs = songList;
+          PlaylistDetailAdapter adapter = new PlaylistDetailAdapter(songList, s -> playSong(songList, s), AlbumDetailActivity.this::onRemoveSong);
+          adapter.setPlaylistName(title);
+          adapter.setController(controller);
+          rv.setAdapter(adapter);
+
+          ((TextView) root.findViewById(R.id.tvDetailCount))
+                  .setText(songList.size() + (songList.size() == 1 ? " song" : " songs"));
+        });
+      }
+
+      @Override
+      public void onError(Exception e) {
+        // Handle error
+      }
+    });
   }
 }

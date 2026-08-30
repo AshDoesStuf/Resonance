@@ -60,7 +60,10 @@ public class ArtistsFragment extends Fragment {
     RecyclerView rv = view.findViewById(R.id.rvArtists);
     rv.setLayoutManager(new LinearLayoutManager(requireContext()));
 
-    adapter = new ArtistsAdapter(requireContext(), displayedArtists, artist -> startActivity(ArtistDetailActivity.createIntent(requireContext(), artist)));
+    adapter = new ArtistsAdapter(requireContext(), displayedArtists, artist -> {
+      // Pass null for channelId and thumb for local artists
+      startActivity(ArtistDetailActivity.createIntent(requireContext(), null, artist.name(), null));
+    });
 
     rv.setAdapter(adapter);
 
@@ -154,7 +157,7 @@ public class ArtistsFragment extends Fragment {
     } else {
       String q = currentQuery.toLowerCase();
       for (Artist a : allArtists) {
-        if (a.name.toLowerCase().contains(q)) {
+        if (a.name().toLowerCase().contains(q)) {
           displayedArtists.add(a);
         }
       }
@@ -184,7 +187,7 @@ public class ArtistsFragment extends Fragment {
       artists.add(new Artist(entry.getKey(), entry.getValue()));
     }
 
-    artists.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
+    artists.sort((a, b) -> a.name().compareToIgnoreCase(b.name()));
     return artists;
   }
 }

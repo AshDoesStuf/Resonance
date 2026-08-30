@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
 
+import me.ash.resonance.MiniPlayerManager;
 import me.ash.resonance.R;
 import me.ash.resonance.ResonanceApp;
 import me.ash.resonance.playlist.PlaylistDetailAdapter;
@@ -27,6 +28,8 @@ import me.ash.resonance.song.Song;
 public abstract class BaseDetailActivity extends AppCompatActivity {
 
   protected MediaController controller;
+  protected List<Song> currentSongs;
+  protected MiniPlayerManager miniPlayerManager;
 
   // ── subclasses ─────────────────────────────────────
 
@@ -53,7 +56,7 @@ public abstract class BaseDetailActivity extends AppCompatActivity {
     overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, R.anim.slide_up, 0);
 
     // ── Swipe-down to close ───────────────────────────────────────────────────
-    root.setOnTouchListener(new View.OnTouchListener() {
+    View.OnTouchListener swipeListener = new View.OnTouchListener() {
       private static final int SWIPE_THRESHOLD = 150;
       private float startY;
 
@@ -63,7 +66,7 @@ public abstract class BaseDetailActivity extends AppCompatActivity {
         switch (event.getAction()) {
           case MotionEvent.ACTION_DOWN:
             startY = event.getRawY();
-            return false; // don't consume, let children handle clicks
+            return true; // must return true to receive subsequent MOVE/UP events
           case MotionEvent.ACTION_UP:
             float dy = event.getRawY() - startY;
             if (dy > SWIPE_THRESHOLD) {
@@ -75,7 +78,13 @@ public abstract class BaseDetailActivity extends AppCompatActivity {
         }
         return false;
       }
-    });
+    };
+
+    root.setOnTouchListener(swipeListener);
+    View header = findViewById(R.id.headerContainer);
+    if (header != null) {
+      header.setOnTouchListener(swipeListener);
+    }
 
     ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root), (v, insets) -> {
       int navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
@@ -88,6 +97,7 @@ public abstract class BaseDetailActivity extends AppCompatActivity {
       overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, R.anim.slide_down);
     });
 
+    miniPlayerManager = new MiniPlayerManager(this);
 
     RecyclerView rv = findViewById(R.id.rvDetailSongs);
 
@@ -107,10 +117,34 @@ public abstract class BaseDetailActivity extends AppCompatActivity {
     connectController();
   }
 
+  @Override
+  protected void onDestroy() {
+    super.onDestroy();
+    if (miniPlayerManager != null) {
+      miniPlayerManager.detach();
+    }
+    controller = null;
+  }
+
   // ── default binding ────────────────────────────────
 
   protected void onSongsLoaded(View root, RecyclerView rv, List<Song> songs) {
+    this.currentSongs = songs;
     rv.setAdapter(new PlaylistDetailAdapter(songs, song -> playSong(songs, song), this::onRemoveSong));
+
+    View btnShuffle = findViewById(R.id.btnShufflePlaylist);
+    if (btnShuffle != null) {
+      btnShuffle.setOnClickListener(v -> {
+        if (controller == null || currentSongs == null || currentSongs.isEmpty()) return;
+        List<MediaItem> items = buildMediaItems(currentSongs);
+        List<MediaItem> shuffled = new ArrayList<>(items);
+        java.util.Collections.shuffle(shuffled);
+        QueueManager.get().setOriginalItems(items);
+        controller.setMediaItems(shuffled, 0, 0);
+        controller.prepare();
+        controller.play();
+      });
+    }
   }
 
   // ── playback ───────────────────────────────────────
@@ -121,11 +155,7 @@ public abstract class BaseDetailActivity extends AppCompatActivity {
     List<MediaItem> items = buildMediaItems(songs);
     int idx = songs.indexOf(song);
 
-    QueueManager.get().setOriginalItems(items);
-
-    controller.setMediaItems(items, idx, 0);
-    controller.prepare();
-    controller.play();
+    QueueManager.get().setQueue(controller, items, idx);
   }
 
   protected List<MediaItem> buildMediaItems(List<Song> songs) {
@@ -141,6 +171,11 @@ public abstract class BaseDetailActivity extends AppCompatActivity {
   // ── controller ─────────────────────────────────────
 
   protected void connectController() {
-    ((ResonanceApp) getApplication()).getSharedController(ctrl -> controller = ctrl);
+    ((ResonanceApp) getApplication()).getSharedController(ctrl -> {
+      controller = ctrl;
+      if (miniPlayerManager != null) {
+        miniPlayerManager.init(controller);
+      }
+    });
   }
 }

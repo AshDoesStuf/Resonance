@@ -30,15 +30,19 @@ public class PlaybackSessionManager {
 
     restored = true;
 
-    shuffle = session.shuffle;
-    repeatMode = session.repeat;
+    shuffle = session.shuffle();
+    repeatMode = session.repeat();
 
-    player.setMediaItems(session.items, session.index, session.position);
+    player.setMediaItems(session.items(), session.index(), session.position());
     player.setRepeatMode(repeatMode);
     player.setShuffleModeEnabled(shuffle);
 
     QueueManager.get().setShuffle(shuffle);
     QueueManager.get().setRepeatMode(repeatMode);
+    QueueManager.get().setOriginalItems(session.items());
+    QueueManager.get().setPendingRestore(
+            new QueueManager.SavedQueueState(session.items(), session.index(), session.position())
+    );
 
     player.prepare();
   }
@@ -50,8 +54,23 @@ public class PlaybackSessionManager {
 
   // ── CONTROL LAYER ─────────────────────────────────────
   public void playPause() {
-    if (player.isPlaying()) player.pause();
-    else player.play();
+    if (player.isPlaying()) {
+      player.pause();
+    } else {
+      checkRemoteStreamFallback();
+      player.play();
+    }
+  }
+
+  private void checkRemoteStreamFallback() {
+    me.ash.resonance.remote.RemoteControlManager rcm =
+            me.ash.resonance.remote.RemoteControlManager.getInstance();
+    if (rcm != null) {
+      me.ash.resonance.remote.RemoteStreamManager rsm = rcm.getRemoteStreamManager();
+      if (rsm != null && rsm.isEnabled()) {
+        rsm.onSetRemoteStreamMode(false);
+      }
+    }
   }
 
   public void next() {
@@ -64,6 +83,8 @@ public class PlaybackSessionManager {
 
   public void setShuffle(boolean value) {
     shuffle = value;
+    player.setShuffleModeEnabled(value);
+    QueueManager.get().setShuffle(value);
   }
 
   public void setRepeatMode(int mode) {

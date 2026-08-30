@@ -2,8 +2,6 @@ package me.ash.resonance.queue;
 
 import android.annotation.SuppressLint;
 import android.graphics.Canvas;
-import android.graphics.drawable.AnimatedVectorDrawable;
-import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -13,17 +11,19 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.media3.common.MediaItem;
+import androidx.recyclerview.widget.AsyncListDiffer;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
-import com.bumptech.glide.request.RequestOptions;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import me.ash.resonance.R;
+import me.ash.resonance.songs.SongActionMenu;
+import me.ash.resonance.songs.SongContext;
+import me.ash.resonance.songs.SongRowBinder;
 
 /**
  * Changes from original:
@@ -37,14 +37,32 @@ import me.ash.resonance.R;
  */
 public class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.QueueViewHolder> {
 
-  private final List<MediaItem> items = new ArrayList<>();
+  private final AsyncListDiffer<MediaItem> differ;
   private final QueueInteractionListener listener;
-  private int currentIndex = 0;
+  private final SongActionMenu.ActionHandler actionHandler;
+  private int currentIndex = -1;
   private ItemTouchHelper touchHelper;
+  private boolean shuffleEnabled = false;
 
-  public QueueAdapter(QueueInteractionListener listener) {
+  public QueueAdapter(QueueInteractionListener listener, SongActionMenu.ActionHandler actionHandler) {
     this.listener = listener;
+    this.actionHandler = actionHandler;
+    this.differ = new AsyncListDiffer<>(this, DIFF_CALLBACK);
   }
+
+  private static final DiffUtil.ItemCallback<MediaItem> DIFF_CALLBACK = new DiffUtil.ItemCallback<MediaItem>() {
+    @Override
+    public boolean areItemsTheSame(@NonNull MediaItem oldItem, @NonNull MediaItem newItem) {
+      return oldItem.mediaId.equals(newItem.mediaId);
+    }
+
+    @Override
+    public boolean areContentsTheSame(@NonNull MediaItem oldItem, @NonNull MediaItem newItem) {
+      return Objects.equals(oldItem.mediaMetadata.title, newItem.mediaMetadata.title) &&
+              Objects.equals(oldItem.mediaMetadata.artist, newItem.mediaMetadata.artist) &&
+              Objects.equals(oldItem.mediaMetadata.artworkUri, newItem.mediaMetadata.artworkUri);
+    }
+  };
 
   public void attachTouchHelper(RecyclerView rv) {
     touchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
@@ -55,6 +73,13 @@ public class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.QueueViewHol
       // fromIndex → toIndex pair rather than a chain of incremental swaps.
       private long dragFrom = RecyclerView.NO_ID;
       private long dragTo = RecyclerView.NO_ID;
+
+      @Override
+      public int getMovementFlags(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder viewHolder) {
+        int dragFlags = shuffleEnabled ? 0 : (ItemTouchHelper.UP | ItemTouchHelper.DOWN);
+        int swipeFlags = ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT;
+        return makeMovementFlags(dragFlags, swipeFlags);
+      }
 
       @Override
       public void onSelectedChanged(RecyclerView.ViewHolder viewHolder, int actionState) {
@@ -80,26 +105,26 @@ public class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.QueueViewHol
       public boolean onMove(@NonNull RecyclerView rv,
                             @NonNull RecyclerView.ViewHolder source,
                             @NonNull RecyclerView.ViewHolder target) {
-        int from = source.getAdapterPosition();
-        int to = target.getAdapterPosition();
-        // Visual-only swap so the drag feels responsive.
-        // The real mutation happens in clearView() → listener.onItemMoved().
-        java.util.Collections.swap(items, from, to);
-        notifyItemMoved(from, to);
+        int from = source.getBindingAdapterPosition();
+        int to = target.getBindingAdapterPosition();
+        
+        // We can't swap in AsyncListDiffer directly, but we can report it.
+        // For drag-and-drop to feel responsive, we update the local list and notify.
+        List<MediaItem> currentList = new ArrayList<>(differ.getCurrentList());
+        java.util.Collections.swap(currentList, from, to);
+        differ.submitList(currentList); // DiffUtil will handle the move efficiently
+        
         dragTo = to;
         return true;
       }
 
       @Override
       public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
-        int pos = viewHolder.getAdapterPosition();
-        // Remove from local list immediately so the animation plays,
-        // then tell the listener to remove it from the controller too.
-        items.remove(pos);
-        notifyItemRemoved(pos);
+        int pos = viewHolder.getBindingAdapterPosition();
+        List<MediaItem> currentList = new ArrayList<>(differ.getCurrentList());
+        currentList.remove(pos);
+        differ.submitList(currentList);
         listener.onItemRemoved(pos);
-        // Note: listener should NOT call setItems() here because the
-        // remove animation is already running; let it finish first.
       }
 
       @Override
@@ -124,12 +149,16 @@ public class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.QueueViewHol
     touchHelper.attachToRecyclerView(rv);
   }
 
-  @SuppressLint("NotifyDataSetChanged")
   public void setItems(List<MediaItem> newItems, int currentIdx) {
-    items.clear();
-    items.addAll(newItems);
+    int oldIdx = this.currentIndex;
     this.currentIndex = currentIdx;
-    notifyDataSetChanged();
+
+    differ.submitList(newItems, () -> {
+      if (oldIdx != currentIndex) {
+        if (oldIdx != -1) notifyItemChanged(oldIdx);
+        if (currentIndex != -1) notifyItemChanged(currentIndex);
+      }
+    });
   }
 
   public void updateCurrentIndex(int index) {
@@ -139,53 +168,46 @@ public class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.QueueViewHol
     notifyItemChanged(currentIndex);
   }
 
+  public void setShuffleEnabled(boolean enabled) {
+    if (this.shuffleEnabled == enabled) return;
+    this.shuffleEnabled = enabled;
+    notifyDataSetChanged(); // refresh drag handle visibility
+  }
+
   @NonNull
   @Override
   public QueueViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
     View v = LayoutInflater.from(parent.getContext())
             .inflate(R.layout.item_queue, parent, false);
-    return new QueueViewHolder(v);
+    QueueViewHolder vh = new QueueViewHolder(v);
+    vh.itemView.setOnClickListener(vClick -> {
+      int pos = vh.getBindingAdapterPosition();
+      if (pos != RecyclerView.NO_POSITION) listener.onItemClicked(pos);
+    });
+    vh.ivOverflow.setOnClickListener(vMenu -> {
+      int pos = vh.getBindingAdapterPosition();
+      if (pos != RecyclerView.NO_POSITION) {
+        MediaItem item = differ.getCurrentList().get(pos);
+        SongActionMenu.show(
+                vh.itemView.getContext(),
+                item,
+                SongContext.queue(pos),
+                actionHandler
+        );
+      }
+    });
+    return vh;
   }
 
   @SuppressLint("ClickableViewAccessibility")
   @Override
   public void onBindViewHolder(@NonNull QueueViewHolder h, int position) {
-    MediaItem item = items.get(position);
+    MediaItem item = differ.getCurrentList().get(position);
     boolean isCurrent = (position == currentIndex);
 
-    CharSequence title = item.mediaMetadata.title;
-    CharSequence artist = item.mediaMetadata.artist;
+    SongRowBinder.bind(h.binderViews, item, isCurrent, !shuffleEnabled, null, null, null);
 
-    h.tvTitle.setText(title != null ? title : "Unknown");
-    h.tvArtist.setText(artist != null ? artist : "Unknown");
-
-    h.tvTitle.setAlpha(isCurrent ? 1f : 0.85f);
-    if (isCurrent) {
-      h.ivPlaying.setVisibility(View.VISIBLE);
-      h.ivPlaying.setImageResource(R.drawable.ic_equalizer_animated);
-      Drawable drawable = h.ivPlaying.getDrawable();
-      if (drawable instanceof AnimatedVectorDrawable) {
-        ((AnimatedVectorDrawable) drawable).start();
-      }
-    } else {
-      h.ivPlaying.setVisibility(View.GONE);
-      Drawable drawable = h.ivPlaying.getDrawable();
-      if (drawable instanceof AnimatedVectorDrawable) {
-        ((AnimatedVectorDrawable) drawable).stop();
-      }
-    }
-
-    Glide.with(h.itemView.getContext())
-            .load(item.mediaMetadata.artworkUri)
-            .apply(new RequestOptions()
-                    .placeholder(R.drawable.music_note_24px)
-                    .error(R.drawable.music_note_24px)
-                    .transform(new RoundedCorners(20)))
-            .into(h.ivArt);
-
-    h.itemView.setOnClickListener(v -> listener.onItemClicked(h.getAdapterPosition()));
-
-    h.ivDragHandle.setOnTouchListener((v, event) -> {
+    h.ivDragHandle.setOnTouchListener(shuffleEnabled ? null : (vTouch, event) -> {
       if (event.getActionMasked() == MotionEvent.ACTION_DOWN && touchHelper != null) {
         touchHelper.startDrag(h);
       }
@@ -195,7 +217,7 @@ public class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.QueueViewHol
 
   @Override
   public int getItemCount() {
-    return items.size();
+    return differ.getCurrentList().size();
   }
 
   public interface QueueInteractionListener {
@@ -216,16 +238,25 @@ public class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.QueueViewHol
   }
 
   static class QueueViewHolder extends RecyclerView.ViewHolder {
-    ImageView ivArt, ivDragHandle, ivPlaying;
+    ImageView ivArt, ivDragHandle, ivPlaying, ivOverflow;
     TextView tvTitle, tvArtist;
+    final SongRowBinder.Views binderViews;
 
     QueueViewHolder(@NonNull View v) {
       super(v);
       ivArt = v.findViewById(R.id.queueItemArt);
       ivDragHandle = v.findViewById(R.id.queueItemDragHandle);
       ivPlaying = v.findViewById(R.id.queueItemPlaying);
+      ivOverflow = v.findViewById(R.id.queueItemOverflow);
       tvTitle = v.findViewById(R.id.queueItemTitle);
       tvArtist = v.findViewById(R.id.queueItemArtist);
+
+      binderViews = new SongRowBinder.Views();
+      binderViews.ivArt = ivArt;
+      binderViews.ivDragHandle = ivDragHandle;
+      binderViews.ivPlaying = ivPlaying;
+      binderViews.tvTitle = tvTitle;
+      binderViews.tvArtist = tvArtist;
     }
   }
 }

@@ -2,15 +2,12 @@ package me.ash.resonance.fragment;
 
 import android.annotation.SuppressLint;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.view.Gravity;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
@@ -31,17 +28,10 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import me.ash.resonance.MusicLoader;
 import me.ash.resonance.R;
-import me.ash.resonance.album.Album;
-import me.ash.resonance.album.AlbumDetailActivity;
-import me.ash.resonance.artist.Artist;
-import me.ash.resonance.artist.ArtistDetailActivity;
 import me.ash.resonance.queue.QueueManager;
 import me.ash.resonance.song.Song;
 import me.ash.resonance.song.SongAdapter;
@@ -61,7 +51,7 @@ public class SongsFragment extends Fragment {
   private List<MediaItem> mediaItems;
 
   private SongAdapter songAdapter;
-  private Map<String, Integer> letterMap;
+  private me.ash.resonance.ui.AlphabetSidebarHelper sidebarHelper;
   // ── Playback ──────────────────────────────────────────────────────────────
   private MediaController controller;
   private int currentlyPlayingIndex = -1;
@@ -100,7 +90,6 @@ public class SongsFragment extends Fragment {
                             me.ash.resonance.MusicLibraryEvent.ACTION_LIBRARY_CHANGED));
 
     new Thread(() -> {
-
       List<Song> loaded = MusicLoader.loadSongs(requireContext());
 
       requireActivity().runOnUiThread(() -> {
@@ -120,7 +109,9 @@ public class SongsFragment extends Fragment {
         mediaItems = buildMediaItems(allSongs);
         QueueManager.get().setOriginalItems(mediaItems);
 
-        setupSidebar(view);
+        sidebarHelper = new me.ash.resonance.ui.AlphabetSidebarHelper(
+                view.findViewById(R.id.alphaSidebar), recyclerView, displayedSongs);
+        sidebarHelper.setup();
         setupHeader(view);
 
         tryApplyPlaylist();
@@ -207,25 +198,23 @@ public class SongsFragment extends Fragment {
     view.findViewById(R.id.btnPlay).setOnClickListener(v -> {
       if (!isControllerReady() || controller == null) return;
       List<MediaItem> queue = buildMediaItems(displayedSongs);
-      QueueManager.get().setOriginalItems(queue);
-      QueueManager.get().setIsSmallWindow(false);  // This is intentional full queue
-      controller.setMediaItems(queue, 0, 0);
-      controller.prepare();
-      controller.play();
+      QueueManager.get().setQueue(controller, queue, 0);
       currentlyPlayingIndex = 0;
       if (recyclerView.getAdapter() != null)
         recyclerView.getAdapter().notifyDataSetChanged();
     });
-// Shuffle play — randomises displayedSongs and plays from position 0
+    // Shuffle play — randomises displayedSongs and plays from position 0
     view.findViewById(R.id.btnShuffle).setOnClickListener(v -> {
-      if (!isControllerReady() || controller == null) return;
-      List<MediaItem> shuffled = new ArrayList<>(buildMediaItems(displayedSongs));
-      Collections.shuffle(shuffled);
-      QueueManager.get().setOriginalItems(new ArrayList<>(buildMediaItems(displayedSongs))); // keep unshuffled as original
-      controller.setMediaItems(shuffled, 0, 0);
-      controller.prepare();
-      controller.play();
-      currentlyPlayingIndex = -1; // shuffled order doesn't map to displayed list
+      if (!isControllerReady() || controller == null || displayedSongs.isEmpty()) return;
+      List<MediaItem> items = buildMediaItems(displayedSongs);
+      int randomIdx = new java.util.Random().nextInt(items.size());
+
+      if (!QueueManager.get().isShuffleOn()) {
+        QueueManager.get().toggleShuffle(controller);
+      }
+      QueueManager.get().setQueue(controller, items, randomIdx);
+
+      currentlyPlayingIndex = -1;
       if (recyclerView.getAdapter() != null)
         recyclerView.getAdapter().notifyDataSetChanged();
     });
@@ -303,7 +292,7 @@ public class SongsFragment extends Fragment {
                 parseDurationSecs(a.duration) - parseDurationSecs(b.duration));
         break;
     }
-    setupSidebar(getView());
+    if (sidebarHelper != null) sidebarHelper.setup();
   }
 
   private int parseDurationSecs(String duration) {
@@ -368,7 +357,7 @@ public class SongsFragment extends Fragment {
       }
     }
 
-    setupSidebar(getView());
+    if (sidebarHelper != null) sidebarHelper.setup();
   }
 
   // ── RecyclerView ──────────────────────────────────────────────────────────
@@ -424,58 +413,24 @@ public class SongsFragment extends Fragment {
       if (index < 0) return;
 
       List<MediaItem> currentQueue = buildMediaItems(displayedSongs);
-      controller.setMediaItems(currentQueue, index, 0);
-      controller.prepare();
-      controller.play();
-
-      // Mark this as a small window so it doesn't get persisted
-      QueueManager.get().setIsSmallWindow(false);  // It's actually FULL queue now
+      QueueManager.get().setQueue(controller, currentQueue, index);
 
       currentlyPlayingIndex = index;
       if (recyclerView.getAdapter() != null)
         recyclerView.getAdapter().notifyDataSetChanged();
     });
 
-
-    songAdapter.onPlayNext = song -> {
-      if (!isControllerReady()) return;
-      int idx = allSongs.indexOf(song);
-      if (idx >= 0) QueueManager.get().playNext(controller, mediaItems.get(idx));
-    };
-
-    songAdapter.onAddToQueue = song -> {
-      if (!isControllerReady()) return;
-      int idx = allSongs.indexOf(song);
-      if (idx >= 0) QueueManager.get().addToQueue(controller, mediaItems.get(idx));
-    };
-
-    // "Go to Artist" → open ArtistDetailSheet
-    songAdapter.onGoToArtist = song -> {
-      Artist artist = new Artist(song.artist, 0); // count not needed for the sheet
-      startActivity(ArtistDetailActivity.createIntent(requireContext(), artist));
-    };
-
-    // "Go to Album" → derive albumId from artworkUri and open AlbumDetailSheet
-    songAdapter.onGoToAlbum = song -> {
-      if (song.albumArtUri == null) return;
-      String path = song.albumArtUri.toString();
-      String albumIdStr = path.substring(path.lastIndexOf('/') + 1);
-      try {
-        long albumId = Long.parseLong(albumIdStr);
-        Album album =
-                new Album(albumId, "", song.artist, 0, song.albumArtUri);
-        startActivity(AlbumDetailActivity.createIntent(requireContext(), album));
-      } catch (NumberFormatException ignored) {
-      }
-    };
-
     recyclerView.setAdapter(songAdapter);
+
+    sidebarHelper = new me.ash.resonance.ui.AlphabetSidebarHelper(
+            view.findViewById(R.id.alphaSidebar), recyclerView, displayedSongs);
+    sidebarHelper.setup();
 
     recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
       @Override
       public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
         super.onScrolled(recyclerView, dx, dy);
-        updateSidebarFromScroll();
+        if (sidebarHelper != null) sidebarHelper.updateFromScroll();
       }
     });
   }
@@ -497,105 +452,6 @@ public class SongsFragment extends Fragment {
     return -1;
   }
 
-  // ── Sidebar ───────────────────────────────────────────────────────────────
-  @SuppressLint("ClickableViewAccessibility")
-  private void setupSidebar(View view) {
-    LinearLayout sidebar = view.findViewById(R.id.alphaSidebar);
-    sidebar.removeAllViews();
-    // Build map from DISPLAYED songs, not all songs
-    letterMap = new HashMap<>();
-    for (int i = 0; i < displayedSongs.size(); i++) {
-      String title = displayedSongs.get(i).title;
-      if (title == null || title.isEmpty()) continue;
-      String letter = Character.isLetter(title.charAt(0))
-              ? title.substring(0, 1).toUpperCase() : "#";
-      if (!letterMap.containsKey(letter)) letterMap.put(letter, i);
-    }
-
-
-    String[] letters = {
-            "#", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
-            "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
-    };
-
-    for (String letter : letters) {
-      TextView tv = new TextView(requireContext());
-      tv.setLayoutParams(new LinearLayout.LayoutParams(
-              LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
-      tv.setText(letter);
-      tv.setTextSize(9f);
-      tv.setGravity(Gravity.CENTER);
-      tv.setTextColor(Color.WHITE);
-      tv.setTag(letter);
-      sidebar.addView(tv);
-    }
-
-    sidebar.setOnTouchListener((v, event) -> {
-      float y = event.getY();
-      int sidebarHeight = v.getHeight();
-      int letterCount = letters.length;
-      int letterHeight = sidebarHeight / letterCount;
-      int index = (int) (y / letterHeight);
-
-      if (index >= 0 && index < letterCount) {
-        String letter = letters[index];
-        if (event.getAction() == MotionEvent.ACTION_DOWN ||
-                event.getAction() == MotionEvent.ACTION_MOVE) {
-          scrollToLetter(letter);
-          updateSidebarHighlight(sidebar, index);
-        }
-      }
-      return true;
-    });
-  }
-
-  private void updateSidebarFromScroll() {
-    LinearLayoutManager manager = (LinearLayoutManager) recyclerView.getLayoutManager();
-    if (manager == null) return;
-
-    int firstVisiblePos = manager.findFirstVisibleItemPosition();
-    if (firstVisiblePos < 0 || firstVisiblePos >= displayedSongs.size()) return;
-
-    String currentLetter = "#";
-    String title = displayedSongs.get(firstVisiblePos).title;
-    if (title != null && !title.isEmpty()) {
-      currentLetter = Character.isLetter(title.charAt(0))
-              ? title.substring(0, 1).toUpperCase() : "#";
-    }
-
-    // Find which index this letter is in the alphabet array
-    String[] letters = {
-            "#", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
-            "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
-    };
-
-    for (int i = 0; i < letters.length; i++) {
-      if (letters[i].equals(currentLetter)) {
-        LinearLayout sidebar = getView().findViewById(R.id.alphaSidebar);
-        updateSidebarHighlight(sidebar, i);
-        break;
-      }
-    }
-  }
-
-  private void updateSidebarHighlight(LinearLayout sidebar, int highlightIndex) {
-    for (int i = 0; i < sidebar.getChildCount(); i++) {
-      View child = sidebar.getChildAt(i);
-      child.setAlpha(i == highlightIndex ? 1.0f : 0.6f);
-    }
-  }
-
-  private void scrollToLetter(String letter) {
-    Integer position = letterMap.get(letter);
-    if (position != null) {
-      // Use scrollToPositionWithOffset for instant snappy scrolling
-      LinearLayoutManager manager = (LinearLayoutManager) recyclerView.getLayoutManager();
-      if (manager != null) {
-        manager.scrollToPositionWithOffset(position, 0);
-      }
-    }
-  }
-
   // ── Controller ────────────────────────────────────────────────────────────
 
   private void initController() {
@@ -603,6 +459,7 @@ public class SongsFragment extends Fragment {
             .getSharedController(ctrl -> {
               if (ctrl == null) return;
               controller = ctrl;
+              songAdapter.setController(ctrl);
               controller.addListener(new Player.Listener() {
                 @Override
                 public void onMediaItemTransition(@Nullable MediaItem item, int reason) {

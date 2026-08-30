@@ -10,6 +10,7 @@ public class ImportedSongEntity {
   public String videoId;
   public String title;
   public String artist;
+  public String album;
   public String thumbnailUrl;
   public long durationSeconds;
   public String duration; // formatted "m:ss"

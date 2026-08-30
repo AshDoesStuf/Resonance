@@ -6,7 +6,7 @@
       <corners
           android:topLeftRadius="24dp"
           android:topRightRadius="24dp" />
-      <solid android:color="#B8141820" />
+      <solid android:color="@color/bg_card" />
     </shape>
   </item>
   <!-- Subtle light gradient overlay — sells the "glass" illusion -->
@@ -22,11 +22,11 @@
           android:type="linear" />
     </shape>
   </item>
-  <!-- Top highlight border -->
+  <!-- Side and Top highlight border -->
   <item
       android:bottom="-1dp"
-      android:left="0dp"
-      android:right="0dp"
+      android:left="-1dp"
+      android:right="-1dp"
       android:top="0dp">
     <shape android:shape="rectangle">
       <corners

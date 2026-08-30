@@ -10,13 +10,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.MediaMetadata;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
-
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
-import com.bumptech.glide.request.RequestOptions;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,26 +21,152 @@ import java.util.List;
 import java.util.Objects;
 
 import me.ash.resonance.R;
+import me.ash.resonance.album.AlbumDetailActivity;
+import me.ash.resonance.artist.ArtistDetailActivity;
 import me.ash.resonance.playlist.PlaylistManager;
+import me.ash.resonance.playlist.PlaylistPickerSheet;
+import me.ash.resonance.queue.QueueManager;
+import me.ash.resonance.songs.SongActionMenu;
+import me.ash.resonance.songs.SongContext;
+import me.ash.resonance.songs.SongRowBinder;
 import me.ash.resonance.ui.ResonanceDialog;
 
 public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder> {
 
   private final List<Song> songs = new ArrayList<>();
   private final OnSongClickListener listener;
-
+  private final java.util.Set<String> selectedIds = new java.util.HashSet<>();
   // Existing action callbacks
   public java.util.function.Consumer<Song> onPlayNext;
   public java.util.function.Consumer<Song> onAddToQueue;
-
   // New navigation callbacks
   public java.util.function.Consumer<Song> onGoToArtist;
   public java.util.function.Consumer<Song> onGoToAlbum;
-
+  private androidx.media3.session.MediaController controller;
+  private boolean selectionMode = false;
+  private OnSelectionChangedListener selectionListener;
   private int playingIndex = -1;
+  private Context holderContext;
+  private final SongActionMenu.ActionHandler actionHandler = new SongActionMenu.ActionHandler() {
+    @Override
+    public void onPlayNext(MediaItem song) {
+      if (controller != null) QueueManager.get().playNext(controller, song);
+    }
+
+    @Override
+    public void onAddToQueue(MediaItem song) {
+      if (controller != null) QueueManager.get().addToQueue(controller, song);
+    }
+
+    @Override
+    public void onAddToPlaylist(MediaItem song) {
+      if (song.mediaId == null) return;
+      Context ctx = holderContext;
+      if (ctx instanceof androidx.fragment.app.FragmentActivity) {
+        PlaylistPickerSheet.newInstance(song.mediaId)
+                .show(((androidx.fragment.app.FragmentActivity) ctx).getSupportFragmentManager(),
+                        PlaylistPickerSheet.TAG);
+      }
+    }
+
+    @Override
+    public void onGoToArtist(MediaItem song) {
+      String artistName = song.mediaMetadata.artist != null ?
+              song.mediaMetadata.artist.toString() : "Unknown";
+      Context ctx = holderContext;
+      ctx.startActivity(ArtistDetailActivity.createIntent(ctx, null, artistName, null));
+    }
+
+    @Override
+    public void onGoToAlbum(MediaItem song) {
+      String albumTitle = song.mediaMetadata.albumTitle != null ?
+              song.mediaMetadata.albumTitle.toString() : "Unknown";
+      String artistName = song.mediaMetadata.artist != null ?
+              song.mediaMetadata.artist.toString() : "Unknown";
+      String artUrl = song.mediaMetadata.artworkUri != null ?
+              song.mediaMetadata.artworkUri.toString() : null;
+
+      Context ctx = holderContext;
+      ctx.startActivity(AlbumDetailActivity.createIntent(ctx, null, albumTitle, artistName, artUrl));
+    }
+
+    @Override
+    public void onShare(MediaItem song) {
+      String title = song.mediaMetadata.title != null ? song.mediaMetadata.title.toString() : "Unknown";
+      String artist = song.mediaMetadata.artist != null ? song.mediaMetadata.artist.toString() : "Unknown";
+      String shareText = "Listening to " + title + " by " + artist;
+
+      android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_SEND);
+      intent.setType("text/plain");
+      intent.putExtra(android.content.Intent.EXTRA_TEXT, shareText);
+      Context ctx = holderContext;
+      ctx.startActivity(android.content.Intent.createChooser(intent, "Share via"));
+    }
+
+    @Override
+    public void onRemoveFromPlaylist(MediaItem song, String playlistId) {
+      // Library context doesn't trigger this
+    }
+
+    @Override
+    public void onRemoveFromQueue(MediaItem song, int index) {
+      // Library context doesn't trigger this
+    }
+
+    @Override
+    public void onRemoveDownload(MediaItem song) {
+      // Library context doesn't trigger this
+    }
+  };
 
   public SongAdapter(OnSongClickListener listener) {
     this.listener = listener;
+  }
+
+  public void setController(androidx.media3.session.MediaController controller) {
+    this.controller = controller;
+  }
+
+  public void setSelectionMode(boolean enabled) {
+    this.selectionMode = enabled;
+    if (!enabled) selectedIds.clear();
+    notifyDataSetChanged();
+  }
+
+  public void setOnSelectionChangedListener(OnSelectionChangedListener listener) {
+    this.selectionListener = listener;
+  }
+
+  public void toggleSelection(String songId) {
+    if (selectedIds.contains(songId)) {
+      selectedIds.remove(songId);
+    } else {
+      selectedIds.add(songId);
+    }
+    notifyDataSetChanged();
+    if (selectionListener != null) selectionListener.onSelectionChanged(selectedIds.size());
+  }
+
+  public void selectAll(List<Song> allSongs) {
+    for (Song s : allSongs) selectedIds.add(s.id);
+    notifyDataSetChanged();
+    if (selectionListener != null) selectionListener.onSelectionChanged(selectedIds.size());
+  }
+
+  public void deselectAll() {
+    selectedIds.clear();
+    notifyDataSetChanged();
+    if (selectionListener != null) selectionListener.onSelectionChanged(selectedIds.size());
+  }
+
+  public void deselectSongs(List<Song> songList) {
+    for (Song s : songList) selectedIds.remove(s.id);
+    notifyDataSetChanged();
+    if (selectionListener != null) selectionListener.onSelectionChanged(selectedIds.size());
+  }
+
+  public java.util.Set<String> getSelectedIds() {
+    return selectedIds;
   }
 
   @NonNull
@@ -57,26 +180,43 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
   @Override
   public void onBindViewHolder(@NonNull SongViewHolder holder, int position) {
     Song song = songs.get(position);
-    holder.tvSongTitle.setText(song.title);
-    holder.tvArtist.setText(song.artist);
-    holder.tvDuration.setText(song.duration);
-
     boolean isPlaying = (position == playingIndex);
-    holder.tvSongTitle.setTextColor(isPlaying
-            ? ContextCompat.getColor(holder.itemView.getContext(), R.color.accent)
-            : ContextCompat.getColor(holder.itemView.getContext(), R.color.text_primary));
-    holder.tvArtist.setAlpha(isPlaying ? 1f : 0.6f);
+    this.holderContext = holder.itemView.getContext();
 
-    Glide.with(holder.itemView.getContext())
-            .load(song.albumArtUri)
-            .apply(new RequestOptions()
-                    .placeholder(R.drawable.ic_note_outlined)
-                    .error(R.drawable.ic_note_outlined)
-                    .transform(new RoundedCorners(16)))
-            .into(holder.ivAlbumArt);
+    MediaMetadata metadata = new MediaMetadata.Builder()
+            .setTitle(song.title)
+            .setArtist(song.artist)
+            .setAlbumTitle(song.album)
+            .setArtworkUri(song.albumArtUri)
+            .build();
+    MediaItem item = new MediaItem.Builder()
+            .setUri(song.uri)
+            .setMediaId(String.valueOf(song.id))
+            .setMediaMetadata(metadata)
+            .build();
 
-    holder.itemView.setOnClickListener(v -> listener.onSongClick(song));
-    holder.btnMore.setOnClickListener(v -> showSongMenu(holder.itemView.getContext(), song));
+    SongRowBinder.Views v = new SongRowBinder.Views();
+    v.ivArt = holder.ivAlbumArt;
+    v.ivPlaying = null; // item_song.xml doesn't have an equalizer view
+    v.tvTitle = holder.tvSongTitle;
+    v.tvArtist = holder.tvArtist;
+    v.tvDuration = holder.tvDuration;
+    if (!selectionMode) v.cbSelect = null;
+    else v.cbSelect = holder.cbSelect;
+
+    SongRowBinder.bind(v, item, isPlaying, false, null, song.duration, selectedIds.contains(song.id));
+    int accentColor = androidx.core.content.ContextCompat.getColor(holderContext, R.color.accent);
+    holder.tvSongTitle.setTextColor(isPlaying ? accentColor : holder.defaultTitleColor);
+
+    if (selectionMode) {
+      holder.btnMore.setVisibility(View.GONE);
+      holder.itemView.setOnClickListener(vClick -> toggleSelection(song.id));
+    } else {
+      holder.btnMore.setVisibility(View.VISIBLE);
+      holder.itemView.setOnClickListener(vClick -> listener.onSongClick(song));
+      holder.btnMore.setOnClickListener(vMenu ->
+              SongActionMenu.show(holder.itemView.getContext(), item, SongContext.library(), actionHandler));
+    }
   }
 
   public void setPlayingIndex(int index) {
@@ -186,10 +326,16 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
     void onSongClick(Song song);
   }
 
+  public interface OnSelectionChangedListener {
+    void onSelectionChanged(int count);
+  }
+
   public static class SongViewHolder extends RecyclerView.ViewHolder {
+    final int defaultTitleColor;
     TextView tvSongTitle, tvArtist, tvDuration;
     ImageView ivAlbumArt;
     ImageButton btnMore;
+    android.widget.CheckBox cbSelect;
 
     public SongViewHolder(@NonNull View itemView) {
       super(itemView);
@@ -198,6 +344,8 @@ public class SongAdapter extends RecyclerView.Adapter<SongAdapter.SongViewHolder
       tvDuration = itemView.findViewById(R.id.tvDuration);
       ivAlbumArt = itemView.findViewById(R.id.ivAlbumArt);
       btnMore = itemView.findViewById(R.id.btnMore);
+      cbSelect = itemView.findViewById(R.id.cbSelect);
+      defaultTitleColor = tvSongTitle.getCurrentTextColor();
     }
   }
 }

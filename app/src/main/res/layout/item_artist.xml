@@ -19,6 +19,13 @@
       app:cardCornerRadius="23dp"
       app:cardElevation="0dp">
 
+    <ImageView
+        android:id="@+id/ivArtistThumb"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/tvArtistInitial"
         android:layout_width="match_parent"

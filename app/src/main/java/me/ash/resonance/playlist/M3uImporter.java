@@ -16,6 +16,8 @@ import java.util.Map;
 
 import me.ash.resonance.MusicLoader;
 import me.ash.resonance.db.AppDatabase;
+import me.ash.resonance.db.DownloadedSongDao;
+import me.ash.resonance.db.DownloadedSongEntity;
 import me.ash.resonance.db.ImportedSongDao;
 import me.ash.resonance.db.ImportedSongEntity;
 import me.ash.resonance.song.Song;
@@ -31,9 +33,9 @@ public class M3uImporter {
     new Thread(() -> {
       try {
         // ── 1. Parse the M3U file ─────────────────────────────────
-        List<String> paths = parseM3u(context, fileUri);
-        for (String path : paths) {
-          Log.d("M3UIMPORTER", path);
+        List<M3uEntry> entries = parseM3u(context, fileUri);
+        for (M3uEntry entry : entries) {
+          Log.d("M3UIMPORTER", entry.path);
         }
 
         // ── 2. Derive playlist name from filename ─────────────────
@@ -49,31 +51,52 @@ public class M3uImporter {
         // ── 3. Build filename → Song map from MediaStore ──────────
         List<Song> allSongs = MusicLoader.loadSongs(context);
         Map<String, Song> byFilename = new HashMap<>();
-        // Also build a localId → Song map for YouTube matching
-        Map<Long, Song> byLocalId = new HashMap<>();
+        Map<String, Song> byId = new HashMap<>();
+        Map<String, Song> byMetadata = new HashMap<>();
+
         for (Song s : allSongs) {
           String filename = getFilename(context, s);
           if (filename != null) byFilename.put(filename.toLowerCase(), s);
-          byLocalId.put(s.id, s);
+          byId.put(s.id, s);
+
+          if (s.title != null && s.artist != null) {
+            byMetadata.put((s.artist + " - " + s.title).toLowerCase(), s);
+            byMetadata.put((s.title + " - " + s.artist).toLowerCase(), s);
+          }
+        }
+
+        // Also index by videoId for YouTube matching
+        ImportedSongDao iDao = AppDatabase.get(context).importedSongDao();
+        DownloadedSongDao dDao = AppDatabase.get(context).downloadedSongDao();
+
+        for (ImportedSongEntity e : iDao.getAll()) {
+          Song s = byId.get(String.valueOf(e.localId));
+          if (s != null) byId.put(e.videoId, s);
+        }
+        for (DownloadedSongEntity e : dDao.getAll()) {
+          Song s = byId.get(String.valueOf(e.mediaStoreId));
+          if (s != null) byId.put(e.videoId, s);
         }
 
         // ── 4. Match M3U entries to songs ─────────────────────────
-        int total = paths.size();
+        int total = entries.size();
         int matched = 0;
         PlaylistManager pm = PlaylistManager.get(context);
-        ImportedSongDao dao = AppDatabase.get(context).importedSongDao();
         pm.createPlaylist(playlistName);
 
-        for (String path : paths) {
+        for (M3uEntry entry : entries) {
           Song song = null;
+          String path = entry.path;
 
-          // Check if this entry is a YouTube URL (Outertune export format)
+          // Check if this entry is a YouTube URL
           String videoId = extractYouTubeVideoId(path);
           if (videoId != null) {
-            ImportedSongEntity entity = dao.getByVideoId(videoId);
-            if (entity != null) {
-              song = byLocalId.get(entity.localId);
-            }
+            song = byId.get(videoId);
+          }
+
+          // Metadata matching (from #EXTINF)
+          if (song == null && entry.metadata != null) {
+            song = byMetadata.get(entry.metadata.toLowerCase());
           }
 
           // Fall back to filename matching for normal M3U file paths
@@ -83,7 +106,7 @@ public class M3uImporter {
           }
 
           if (song != null) {
-            pm.addToPlaylist(playlistName, String.valueOf(song.id));
+            pm.addToPlaylist(playlistName, song.id);
             matched++;
           }
         }
@@ -125,20 +148,32 @@ public class M3uImporter {
     return null;
   }
 
-  private static List<String> parseM3u(Context context, Uri uri) throws Exception {
-    List<String> paths = new ArrayList<>();
+  private static List<M3uEntry> parseM3u(Context context, Uri uri) throws Exception {
+    List<M3uEntry> entries = new ArrayList<>();
     InputStream is = context.getContentResolver().openInputStream(uri);
     if (is == null) throw new Exception("Cannot open file");
 
     BufferedReader reader = new BufferedReader(new InputStreamReader(is));
     String line;
+    String lastMetadata = null;
     while ((line = reader.readLine()) != null) {
       line = line.trim();
-      if (line.isEmpty() || line.startsWith("#")) continue; // skip comments/directives
-      paths.add(line);
+      if (line.isEmpty()) continue;
+      if (line.startsWith("#EXTINF:")) {
+        int comma = line.indexOf(',');
+        if (comma >= 0) lastMetadata = line.substring(comma + 1).trim();
+        continue;
+      }
+      if (line.startsWith("#")) continue;
+
+      M3uEntry entry = new M3uEntry();
+      entry.path = line;
+      entry.metadata = lastMetadata;
+      entries.add(entry);
+      lastMetadata = null;
     }
     reader.close();
-    return paths;
+    return entries;
   }
 
   // ── M3U parser ────────────────────────────────────────────────────────
@@ -199,5 +234,10 @@ public class M3uImporter {
     void onDone(String playlistName, int matched, int total);
 
     void onError(String message);
+  }
+
+  private static class M3uEntry {
+    String path;
+    String metadata;
   }
 }

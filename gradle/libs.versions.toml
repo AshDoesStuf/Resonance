@@ -18,18 +18,25 @@ constraintlayout = "2.1.4"
 materialVersion = "1.12.0"
 media = "1.8.0"
 media3Exoplayer = "1.10.0"
-newpipeextractor = "v0.26.1"
+newpipeextractor = "v0.26.2"
 okhttp = "5.3.2"
 rhino = "1.9.1"
 roomRuntime = "2.8.4"
 viewpager2 = "1.1.0"
 media3Session = "1.10.1"
+java-websocket = "1.5.7"
+play-services-nearby = "19.3.0"
+media3DatasourceOkhttp = "1.10.1"
+palette = "1.0.0"
+workRuntime = "2.11.2"
 
 [libraries]
+work-runtime = { module = "androidx.work:work-runtime", version.ref = "workRuntime" }
 blurview = { module = "com.github.Dimezis:BlurView", version.ref = "blurview" }
 blurview-vversion320 = { module = "com.github.Dimezis:BlurView", version.ref = "blurviewVersion" }
 datastore = { module = "androidx.datastore:datastore", version.ref = "datastore" }
 glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
+glide-compiler = { module = "com.github.bumptech.glide:compiler", version.ref = "glide" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -54,6 +61,10 @@ room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRun
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
 viewpager2 = { group = "androidx.viewpager2", name = "viewpager2", version.ref = "viewpager2" }
 media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3Session" }
+play-services-nearby = { group = "com.google.android.gms", name = "play-services-nearby", version.ref = "play-services-nearby" }
+java-websocket = { module = "org.java-websocket:Java-WebSocket", version.ref = "java-websocket" }
+media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3DatasourceOkhttp" }
+palette = { module = "androidx.palette:palette", version.ref = "palette" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

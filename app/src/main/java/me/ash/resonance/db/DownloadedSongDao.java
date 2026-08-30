@@ -15,6 +15,9 @@ public interface DownloadedSongDao {
   @Query("SELECT * FROM downloaded_songs")
   List<DownloadedSongEntity> getAll();
 
+  @Query("SELECT * FROM downloaded_songs WHERE videoId = :videoId LIMIT 1")
+  DownloadedSongEntity getByVideoId(String videoId);
+
   @Query("SELECT mediaStoreId FROM downloaded_songs WHERE videoId = :videoId LIMIT 1")
   long getMediaStoreIdForVideo(String videoId);
 

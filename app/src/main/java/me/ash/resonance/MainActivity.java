@@ -26,12 +26,14 @@ import me.ash.resonance.adapter.TabAdapter;
 public class MainActivity extends AppCompatActivity {
 
   private static final int PERMISSION_REQUEST_CODE = 101;
+  private static final String PREF_LAST_TAB = "last_tab";
 
   private MiniPlayerManager miniPlayerManager;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+//    getSharedPreferences("playback_session", MODE_PRIVATE).edit().clear().apply();
     setContentView(R.layout.activity_main);
     setSupportActionBar(findViewById(R.id.toolbar));
 
@@ -83,13 +85,17 @@ public class MainActivity extends AppCompatActivity {
 
     tabRecycler.setAdapter(adapter);
 
-    tabRecycler.post(() -> scrollTabToCenter(tabRecycler, 0));
+    int lastTab = getPreferences(MODE_PRIVATE).getInt(PREF_LAST_TAB, 0);
+    viewPager.setCurrentItem(lastTab, false);
+    adapter.setSelectedIndex(lastTab);
+    tabRecycler.post(() -> scrollTabToCenter(tabRecycler, lastTab));
 
     viewPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
       @Override
       public void onPageSelected(int position) {
         adapter.setSelectedIndex(position);
         scrollTabToCenter(tabRecycler, position);
+        getPreferences(MODE_PRIVATE).edit().putInt(PREF_LAST_TAB, position).apply();
       }
     });
 

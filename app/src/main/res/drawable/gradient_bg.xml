@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <gradient
-        android:angle="270"
-        android:centerColor="@color/bg_secondary"
-        android:endColor="@color/bg_primary"
-        android:startColor="@color/bg_primary" />
+  <gradient
+      android:angle="270"
+      android:centerColor="@color/bg_card"
+      android:endColor="@color/bg_primary"
+      android:startColor="@color/bg_primary"
+      android:type="linear"
+      android:gradientRadius="5dp"
+      />
 </shape>

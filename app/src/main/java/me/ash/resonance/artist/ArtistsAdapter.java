@@ -42,12 +42,12 @@ public class ArtistsAdapter extends RecyclerView.Adapter<ArtistsAdapter.VH> {
   public void onBindViewHolder(@NonNull VH holder, int position) {
     Artist artist = artists.get(position);
 
-    holder.tvArtistName.setText(artist.name);
+    holder.tvArtistName.setText(artist.name());
     holder.tvArtistSongCount.setText(
-            artist.songCount == 1 ? "1 song" : artist.songCount + " songs");
+            artist.songCount() == 1 ? "1 song" : artist.songCount() + " songs");
 
     // First letter avatar (fall back to "?" for unknown/blank artists)
-    String name = artist.name != null ? artist.name.trim() : "";
+    String name = artist.name() != null ? artist.name().trim() : "";
     holder.tvArtistInitial.setText(
             (!name.isEmpty() && !name.equals("<unknown>"))
                     ? String.valueOf(Character.toUpperCase(name.charAt(0)))
@@ -78,14 +78,14 @@ public class ArtistsAdapter extends RecyclerView.Adapter<ArtistsAdapter.VH> {
 
       @Override
       public boolean areItemsTheSame(int oldPos, int newPos) {
-        return Objects.equals(oldList.get(oldPos).name, newList.get(newPos).name);
+        return Objects.equals(oldList.get(oldPos).name(), newList.get(newPos).name());
       }
 
       @Override
       public boolean areContentsTheSame(int oldPos, int newPos) {
         Artist a = oldList.get(oldPos);
         Artist b = newList.get(newPos);
-        return Objects.equals(a.name, b.name) && a.songCount == b.songCount;
+        return Objects.equals(a.name(), b.name()) && a.songCount() == b.songCount();
       }
     });
 

@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -11,7 +12,12 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
 
 import java.util.List;
@@ -45,8 +51,34 @@ public class PlaylistPickerSheet extends BottomSheetDialogFragment {
   public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
     super.onViewCreated(view, savedInstanceState);
 
-    if (getDialog() != null && getDialog().getWindow() != null)
-      getDialog().getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+    if (getDialog() != null && getDialog().getWindow() != null) {
+      Window window = getDialog().getWindow();
+      window.setBackgroundDrawableResource(android.R.color.transparent);
+      window.setNavigationBarColor(android.graphics.Color.TRANSPARENT);
+      window.setNavigationBarContrastEnforced(false);
+      WindowCompat.setDecorFitsSystemWindows(window, false);
+
+      View bottomSheet = getDialog().findViewById(com.google.android.material.R.id.design_bottom_sheet);
+      if (bottomSheet != null) {
+        bottomSheet.setBackground(null);
+        // On modern Material components, this behavior handles insets.
+        // We disable its internal inset padding so our custom padding works.
+        try {
+          BottomSheetBehavior<View> behavior = BottomSheetBehavior.from(bottomSheet);
+          // Using reflection or checking if method exists if compile errors persist, 
+          // but usually available in recent versions.
+        } catch (Exception ignored) {}
+      }
+    }
+
+    LinearLayout contentLayout = view.findViewById(R.id.pickerContentLayout);
+    if (contentLayout != null) {
+      ViewCompat.setOnApplyWindowInsetsListener(contentLayout, (v, insets) -> {
+        Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+        v.setPadding(0, 0, 0, systemBars.bottom);
+        return WindowInsetsCompat.CONSUMED;
+      });
+    }
 
     String mediaId = getArguments() != null ? getArguments().getString(ARG_MEDIA_ID) : null;
     if (mediaId == null) {

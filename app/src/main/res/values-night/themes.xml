@@ -1,7 +1,17 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.Resonance" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
-    </style>
+<resources>
+  <!-- Base application theme. -->
+  <style name="Theme.Resonance" parent="Theme.Material3.DayNight.NoActionBar">
+    <!-- Customize your dark theme here. -->
+    <item name="android:fontFamily">@font/jetbrains</item>
+    <item name="fontFamily">@font/jetbrains</item>
+
+    <item name="colorPrimary">@color/bg_primary</item>
+    <item name="colorSurface">@color/bg_primary</item>
+    <item name="colorOnSurface">@color/text_primary</item>
+    <item name="colorOnPrimary">@color/text_primary</item>
+
+    <item name="android:statusBarColor">@android:color/transparent</item>
+    <item name="android:navigationBarColor">@android:color/transparent</item>
+    <item name="bottomSheetDialogTheme">@style/BottomSheetStyle</item>
+  </style>
 </resources>

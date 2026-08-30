@@ -93,6 +93,16 @@ public class PlaybackStatsManager {
     return total;
   }
 
+  public java.util.Map<String, Integer> getPlayCounts() {
+    JSONObject counts = getJson(KEY_COUNTS);
+    java.util.Map<String, Integer> map = new java.util.HashMap<>();
+    for (Iterator<String> it = counts.keys(); it.hasNext(); ) {
+      String id = it.next();
+      map.put(id, counts.optInt(id, 0));
+    }
+    return map;
+  }
+
   private JSONObject getJson(String key) {
     try {
       return new JSONObject(prefs.getString(key, "{}"));

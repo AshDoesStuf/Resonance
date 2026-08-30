@@ -82,7 +82,7 @@ public class TabAdapter extends RecyclerView.Adapter<TabAdapter.VH> {
       tv.setTypeface(null, android.graphics.Typeface.NORMAL);
     }
 
-    tv.setText(items.get(position).title);
+    tv.setText(items.get(position).title());
     tv.setTextColor(textColor);
     tv.setScaleX(scale);
     tv.setScaleY(scale);

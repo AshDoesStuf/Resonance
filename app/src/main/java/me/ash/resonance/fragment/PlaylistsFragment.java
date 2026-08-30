@@ -1,5 +1,7 @@
 package me.ash.resonance.fragment;
 
+import static android.content.Context.MODE_PRIVATE;
+
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -27,10 +29,12 @@ import me.ash.resonance.ui.ResonanceInputSheet;
 public class PlaylistsFragment extends Fragment {
 
   private static final int REQUEST_M3U = 2001;
+  private static final String PREF_GRID_MODE = "grid_mode";
   private PlaylistsAdapter adapter;
+
+  private ImageButton btnToggle;
   private RecyclerView rv;
   private boolean isGridMode = false;
-
   private android.content.BroadcastReceiver libraryReceiver;
 
   @Nullable
@@ -46,6 +50,7 @@ public class PlaylistsFragment extends Fragment {
     super.onViewCreated(view, savedInstanceState);
 
     rv = view.findViewById(R.id.rvPlaylists);
+    btnToggle = view.findViewById(R.id.btnToggleView);
 
     adapter = new PlaylistsAdapter(requireContext(),
             name -> startActivity(PlaylistDetailActivity.createIntent(requireContext(), name)));
@@ -66,15 +71,14 @@ public class PlaylistsFragment extends Fragment {
                             me.ash.resonance.MusicLibraryEvent.ACTION_LIBRARY_CHANGED));
 
     rv.setAdapter(adapter);
+    isGridMode = requireActivity().getPreferences(MODE_PRIVATE).getBoolean(PREF_GRID_MODE, false);
     applyLayoutManager();
 
     // Toggle list ↔ grid
-    ImageButton btnToggle = view.findViewById(R.id.btnToggleView);
+
     btnToggle.setOnClickListener(v -> {
       isGridMode = !isGridMode;
-      btnToggle.setImageResource(
-              isGridMode ? R.drawable.ic_list_view : R.drawable.ic_grid_view);
-      adapter.setViewMode(isGridMode ? PlaylistsAdapter.GRID : PlaylistsAdapter.LIST);
+      requireActivity().getPreferences(MODE_PRIVATE).edit().putBoolean(PREF_GRID_MODE, isGridMode).apply();
       applyLayoutManager();
     });
 
@@ -94,6 +98,11 @@ public class PlaylistsFragment extends Fragment {
   }
 
   private void applyLayoutManager() {
+    btnToggle.setImageResource(
+            isGridMode ? R.drawable.ic_list_view : R.drawable.ic_grid_view);
+
+    adapter.setViewMode(isGridMode ? PlaylistsAdapter.GRID : PlaylistsAdapter.LIST);
+
     rv.setLayoutManager(isGridMode
             ? new GridLayoutManager(requireContext(), 2)
             : new LinearLayoutManager(requireContext()));
